@@ -33,7 +33,7 @@ EOF
 }
 
 # Main entry point for wrapper, containing argument parser.
-function main() {
+main() {
     # Show help if no arguments are given.
     [ $# -eq 0 ] && show_help && exit 1
 

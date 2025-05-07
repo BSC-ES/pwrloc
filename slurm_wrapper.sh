@@ -10,6 +10,7 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 . "$BASEDIR/utils.sh"
 
 # Returns 0 if SLURM is available, 1 otherwise.
-function slurm_available() {
-    verbose_echo "Checking for SLURM availability.."
+slurm_available() {
+    verbose_echo print_info "Checking for SLURM availability.."
+    return 1
 }
