@@ -3,14 +3,13 @@
 # This file contains common utils to be used.
 # ------------------------------------------------------------------------------
 
-# Default VERBOSE value in case it is not set elsewhere.
-VERBOSE=0
-
-
 # Checks if the passed function exists.
 function_exists() {
     type "$1" 2>/dev/null | grep -q 'function'
 }
+
+# Default VERBOSE value for verbose_echo() function.
+VERBOSE=0
 
 # Only echo the passed string if VERBOSE is set.
 verbose_echo() {
@@ -29,7 +28,7 @@ verbose_echo() {
     fi
 }
 
-# Color codes for pretty printing.
+# Color codes for print_*() functions.
 COLOR_RESET='\033[0m'       # Reset to default color
 COLOR_INFO='\033[1;34m'     # Blue
 COLOR_SUCCESS='\033[1;32m'  # Green
