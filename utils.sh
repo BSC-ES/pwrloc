@@ -37,20 +37,36 @@ COLOR_ERROR='\033[1;31m'    # Red
 
 # Info message.
 print_info() {
-  echo -e "${COLOR_INFO}[INFO] $1${COLOR_RESET}"
+    echo -e "${COLOR_INFO}[INFO] $1${COLOR_RESET}"
 }
 
 # Success message.
 print_success() {
-  echo -e "${COLOR_SUCCESS}[SUCCESS] $1${COLOR_RESET}"
+    echo -e "${COLOR_SUCCESS}[SUCCESS] $1${COLOR_RESET}"
 }
 
 # Warning message.
 print_warning() {
-  echo -e "${COLOR_WARNING}[WARNING] $1${COLOR_RESET}"
+    echo -e "${COLOR_WARNING}[WARNING] $1${COLOR_RESET}"
 }
 
 # Error message.
 print_error() {
-  echo -e "${COLOR_ERROR}[ERROR] $1${COLOR_RESET}"
+    echo -e "${COLOR_ERROR}[ERROR] $1${COLOR_RESET}"
+}
+
+# Print the given sequence repeated in full terminal width or 80 characters.
+print_full_width() {
+    # Return if no character was provided.
+    if [ $# -eq 0 ]; then
+        return
+    fi
+
+    # Set width for printing.
+    max_width=80
+    term_width=$(tput cols 2>/dev/null || echo $max_width)
+    [ "$term_width" -gt "$max_width" ] && term_width=$max_width
+    
+    # Print in terminal width.
+    printf '%*s\n' "$term_width" '' | tr ' ' "$1"
 }

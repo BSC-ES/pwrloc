@@ -13,7 +13,7 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 . "$BASEDIR/slurm_wrapper.sh"
 
 # Show how to use this program.
-function show_help() {
+show_help() {
     cat << EOF
 Usage: $(basename "$0") [-p PROFILER][-l] [-v] [--] [bin] [args]
 
@@ -30,6 +30,28 @@ Example:
   $(basename "$0") -p slurm echo "Hello world"
   $(basename "$0") -p slurm -- echo "Foo Bar rules!"
 EOF
+}
+
+# Show the setup after parsing the arguments.
+show_setup() {
+    # Show setup in case of a verbose execution.
+    verbose_echo "========="
+    verbose_echo "| SETUP |"
+    verbose_echo print_full_width =
+    verbose_echo "PROFILER = $PROFILER"
+    verbose_echo "LIST_PROFILERS = $LIST_PROFILERS"
+    verbose_echo "VERBOSE = $VERBOSE"
+    verbose_echo "BIN = $BIN"
+    verbose_echo "ARGS = $ARGS"
+    verbose_echo print_full_width =
+}
+
+# Show info on the availability and setup of the supported profilers.
+show_profilers() {
+    # Fetch SLURM variables.
+    SLURM_AVAIL=$(slurm_available)
+    SLURM_PTYPE=$(slurm_profiler_type)
+    SLURM_PFREQ=$(slurm_profiler_freq)
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -66,7 +88,10 @@ main() {
         exit 1
     fi
 
-    # Validate the PROFILER.
+    # Print the setup, if in VERBOSE mode.
+    show_setup
+
+    # Validate the PROFILER and profile the application afterwards.
     case "$PROFILER" in
         slurm)
             # Validate SLURM availability.
@@ -89,13 +114,6 @@ main() {
             exit 1
             ;;
     esac
-
-    # Show setup.
-    echo "PROFILER = $PROFILER"
-    echo "LIST_PROFILERS = $LIST_PROFILERS"
-    echo "VERBOSE = $VERBOSE"
-    echo "BIN = $BIN"
-    echo "ARGS = $ARGS"
 }
 
 main "$@"
