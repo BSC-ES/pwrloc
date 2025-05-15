@@ -18,8 +18,8 @@ show_help() {
 Usage: $(basename "$0") [-p PROFILER][-l] [-v] [--] [bin] [args]
 
 Options:
-  -p PROFILER   Specify input file
-  -l            List available profilers
+  -p PROFILER   Profile using provided PROFILER
+  -l            List availability of the supported profilers
   -v            Enable verbose mode
   -h            Show this help message and exit
 
