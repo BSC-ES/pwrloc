@@ -12,3 +12,9 @@ Foo
 ## How to use
 
 Bar
+
+## Dev values
+LUMI VARIABLES:  
+AcctGatherEnergyType    = acct_gather_energy/pm_counters  
+AcctGatherNodeFreq      = 30 sec  
+JobAcctGatherFrequency  = task=30,energy=30,filesystem=30  

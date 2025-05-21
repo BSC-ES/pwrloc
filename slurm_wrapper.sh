@@ -19,21 +19,6 @@ get_conf_value() {
     echo "$value"
 }
 
-# Returns 0 if SLURM is available, 1 otherwise.
-slurm_available() {
-    verbose_echo print_info "Checking for SLURM availability.."
-    
-    # Check if the plugin is set within the SLURM config.
-    if function_exists scontrol; then
-        P_ENABLED=$(get_conf_value JobAcctGatherEnergy)
-        [ -n "$P_ENABLED" ] && return 0
-    else
-        print_warning "Function 'scontrol' not available."
-    fi
-
-    return 1
-}
-
 # Returns the energy gatherer type.
 slurm_profiler_type() {
     get_conf_value AcctGatherEnergyType
@@ -41,5 +26,83 @@ slurm_profiler_type() {
 
 # Returns the sample frequency.
 slurm_profiler_freq() {
+    # Try to get frequency for energy specifically.
+    P_FREQ=$(get_conf_value JobAcctGatherFrequency)
+
+    if [ -n "$P_FREQ" ]; then
+        # Get energy frequency from string, if present.
+        IFS=',' set -- $P_FREQ
+        for part; do
+            case "$part" in
+                energy=*) 
+                    echo "${part#*=}"
+                    return 0
+                    ;;
+            esac
+        done
+    fi
+
+    # Otherwise default to node frequency.
     get_conf_value AcctGatherNodeFreq
+}
+
+# Returns 0 if SLURM is available, 1 otherwise.
+slurm_available() {
+    verbose_echo print_info "Checking for SLURM availability.."
+    
+    # Check if the plugin is set within the SLURM config.
+    if ! function_exists scontrol; then
+        print_warning "Function 'scontrol' not available."
+        return 1
+    fi
+
+    # Check if the gather type and frequency are non-zero.
+    P_TYPE=$(slurm_profiler_type)
+    P_FREQ=$(slurm_profiler_freq)
+
+    if [ -z "$P_TYPE" ] || [ -z "$P_FREQ" ]; then
+        echo 1
+        return 1
+    fi
+
+    # If everything is present, than the energy accounting is enabled.
+    echo 0
+    return 0
+}
+
+# Get the current energy consumption of a given job.
+slurm_get_energy_consumed() {
+    JOBID="$1"
+    sacct -j "$JOBID" --format=ConsumedEnergy -nP | head -n 1
+}
+
+# Profile given application with SLURM and return the total consumed energy.
+slurm_profile() {
+    verbose_echo print_info "Profiling using SLURM.."
+
+    # Check if we are inside a running SLURM job.
+    if [ -n "$SLURM_JOB_ID" ]; then
+        print_error "Not in a SLURM job."
+        exit 1
+    fi
+
+    # Get starting energy consumed value of currently running job.
+    E_START=$(slurm_get_energy_consumed $SLURM_JOB_ID)
+    verbose_echo print_info "Start energy consumed:  $E_START"
+
+    # Execute the program.
+    "$@"
+    local retval=$?
+    verbose_echo "Application finished with return value: $retval"
+
+    # Get new energy consumed value.
+    E_END=$(slurm_get_energy_consumed $SLURM_JOB_ID)
+    verbose_echo print_info "End energy consumed:  $E_END"
+
+    # Report the consumed energy.
+    
+    echo "Energy Profile:"
+    echo -e "\tStart:     $E_START"
+    echo -e "\tEnd:       $E_END"
+    echo -e "\tConsumed:  $E_CONSUMED"
 }

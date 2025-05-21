@@ -35,15 +35,13 @@ EOF
 # Show the setup after parsing the arguments.
 show_setup() {
     # Show setup in case of a verbose execution.
-    verbose_echo "========="
-    verbose_echo "| SETUP |"
-    verbose_echo print_full_width =
+    verbose_echo "========== SETUP =========="
     verbose_echo "PROFILER = $PROFILER"
     verbose_echo "LIST_PROFILERS = $LIST_PROFILERS"
     verbose_echo "VERBOSE = $VERBOSE"
     verbose_echo "BIN = $BIN"
     verbose_echo "ARGS = $ARGS"
-    verbose_echo print_full_width =
+    verbose_echo "======== END SETUP ========"
 }
 
 # Show info on the availability and setup of the supported profilers.
@@ -52,6 +50,10 @@ show_profilers() {
     SLURM_AVAIL=$(slurm_available)
     SLURM_PTYPE=$(slurm_profiler_type)
     SLURM_PFREQ=$(slurm_profiler_freq)
+
+    echo "SLURM_AVAIL: $SLURM_AVAIL"
+    echo "SLURM_PTYPE: $SLURM_PTYPE"
+    echo "SLURM_PFREQ: $SLURM_PFREQ"
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -68,7 +70,7 @@ main() {
     while getopts ":p:lvh" opt; do
         case "$opt" in
             p) PROFILER="$OPTARG" ;;
-            l) LIST_PROFILERS=1 ;;
+            l) show_profilers; exit 1 ;;
             v) export VERBOSE=1 ;;
             h) show_help; exit 0 ;;
             :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
@@ -107,6 +109,8 @@ main() {
         ear)
             # Validate EAR availability.
             # TODO
+            ;;
+        "") # Variable not set.
             ;;
         *)
             echo "Invalid profiler: $PROFILER"

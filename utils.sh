@@ -5,13 +5,14 @@
 
 # Checks if the passed function exists.
 function_exists() {
-    type "$1" 2>/dev/null | grep -q 'function'
+    command -v "$1" >/dev/null 2>&1
+    # type "$1" 2>/dev/null | grep -q -e "function" -e "hashed"
 }
 
 # Default VERBOSE value for verbose_echo() function.
 VERBOSE=0
 
-# Only echo the passed string if VERBOSE is set.
+# Only echo the passed string if VERBOSE is set. type "$1" 2
 verbose_echo() {
     if [ "$VERBOSE" -eq 1 ]; then
         # If two arguments are passed, interpret first as pretty print option.
