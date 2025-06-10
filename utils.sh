@@ -3,10 +3,18 @@
 # This file contains common utils to be used.
 # ------------------------------------------------------------------------------
 
+# Transform boolean numbers into text.
+bool_to_text() {
+    if [ "$1" -eq "0" ]; then
+        echo "TRUE"
+    else
+        echo "FALSE"
+    fi
+}
+
 # Checks if the passed function exists.
 function_exists() {
     command -v "$1" >/dev/null 2>&1
-    # type "$1" 2>/dev/null | grep -q -e "function" -e "hashed"
 }
 
 # Default VERBOSE value for verbose_echo() function.
@@ -21,10 +29,10 @@ verbose_echo() {
             if function_exists "$1"; then
                 "$1" "$2"
             else
-                echo "$2"
+                echo -e "$2"
             fi
         else
-            echo "$1"
+            echo -e "$1"
         fi
     fi
 }

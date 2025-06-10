@@ -41,7 +41,7 @@ show_setup() {
     verbose_echo "VERBOSE = $VERBOSE"
     verbose_echo "BIN = $BIN"
     verbose_echo "ARGS = $ARGS"
-    verbose_echo "======== END SETUP ========"
+    verbose_echo "======== END SETUP ========\n"
 }
 
 # Show info on the availability and setup of the supported profilers.
@@ -51,7 +51,7 @@ show_profilers() {
     SLURM_PTYPE=$(slurm_profiler_type)
     SLURM_PFREQ=$(slurm_profiler_freq)
 
-    echo "SLURM_AVAIL: $SLURM_AVAIL"
+    echo "SLURM_AVAIL: $(bool_to_text $SLURM_AVAIL)"
     echo "SLURM_PTYPE: $SLURM_PTYPE"
     echo "SLURM_PFREQ: $SLURM_PFREQ"
 }
@@ -97,10 +97,12 @@ main() {
     case "$PROFILER" in
         slurm)
             # Validate SLURM availability.
-            if ! slurm_available; then
-                echo "SLURM energy accounting is not available."
+            slurm_available >/dev/null 2>&1
+            if [ $? -eq 1 ]; then
+                print_error "SLURM energy accounting is not available."
                 exit 1
             fi
+            slurm_profile "$BIN" "$ARGS"
             ;;
         likwid)
             # Validate LIKWID availability.
