@@ -17,11 +17,12 @@ function_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Default VERBOSE value for verbose_echo() function.
-VERBOSE=0
-
 # Only echo the passed string if VERBOSE is set. type "$1" 2
 verbose_echo() {
+    # Turn VERBOSE output off by default.
+    [ -z "$VERBOSE" ]; VERBOSE=0
+
+    # Print if VERBOSE is set.
     if [ "$VERBOSE" -eq 1 ]; then
         # If two arguments are passed, interpret first as pretty print option.
         if [ "$#" -eq 2 ]; then
@@ -72,8 +73,8 @@ print_full_width() {
     fi
 
     # Set width for printing.
-    max_width=80
-    term_width=$(tput cols 2>/dev/null || echo $max_width)
+    local max_width=80
+    local term_width=$(tput cols 2>/dev/null || echo $max_width)
     [ "$term_width" -gt "$max_width" ] && term_width=$max_width
     
     # Print in terminal width.

@@ -12,10 +12,10 @@ SLURM_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Returns the value of a given parameter from the SLURM config file.
 get_conf_value() {
     # Get value from config.
-    line=$(scontrol show config | grep "$1")
+    local line=$(scontrol show config | grep "$1")
     
     # Remove all before "=", then strip whitespace on both ends.
-    value=$(echo "$line" | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+    local value=$(echo "$line" | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
     echo "$value"
 }
 
@@ -27,7 +27,7 @@ slurm_profiler_type() {
 # Returns the sample frequency.
 slurm_profiler_freq() {
     # Try to get frequency for energy specifically.
-    p_freq=$(get_conf_value JobAcctGatherFrequency)
+    local p_freq=$(get_conf_value JobAcctGatherFrequency)
 
     if [ -n "$p_freq" ]; then
         # Get energy frequency from string, if present.
@@ -57,8 +57,8 @@ slurm_available() {
     fi
 
     # Check if the gather type and frequency are non-zero.
-    p_type=$(slurm_profiler_type)
-    p_freq=$(slurm_profiler_freq)
+    local p_type=$(slurm_profiler_type)
+    local p_freq=$(slurm_profiler_freq)
 
     if [ -z "$p_type" ] || [ -z "$p_freq" ]; then
         echo 1
@@ -73,11 +73,11 @@ slurm_available() {
 # Convert a ConsumedEnergy string (e.g. "123.45K") to integer joules.
 convert_to_joules() {
     # Strip whitespace
-    string=$(printf "%s" "$1" | tr -d ' ')
+    local string=$(printf "%s" "$1" | tr -d ' ')
 
     # Separate numeric value and unit
-    num=$(printf "%s" "$string" | sed 's/[KMG]$//')
-    unit=$(printf "%s" "$string" | sed 's/^[0-9.]*//')
+    local num=$(printf "%s" "$string" | sed 's/[KMG]$//')
+    local unit=$(printf "%s" "$string" | sed 's/^[0-9.]*//')
 
     # Choose multiplier based on unit
     case "$unit" in
@@ -94,33 +94,33 @@ convert_to_joules() {
 
 # Convert integer joules into human readable unit (J, K, M, G).
 convert_from_joules() {
-    joules="$1"
+    local joules="$1"
 
     if [ "$joules" -ge 1000000000 ]; then
-        unit="G"
-        divisor=1000000000
+        local unit="G"
+        local divisor=1000000000
     elif [ "$joules" -ge 1000000 ]; then
-        unit="M"
-        divisor=1000000
+        local unit="M"
+        local divisor=1000000
     elif [ "$joules" -ge 1000 ]; then
-        unit="K"
-        divisor=1000
+        local unit="K"
+        local divisor=1000
     else
-        unit=""
-        divisor=1
+        local unit=""
+        local divisor=1
     fi
 
-    value=$(echo "scale=2; $joules / $divisor" | bc)
+    local value=$(echo "scale=2; $joules / $divisor" | bc)
     printf "%s%s" "$value" "$unit"
 }
 
 # Get the current energy consumption of a given job.
 slurm_get_energy_consumed() {
-    jobid="$1"
-    values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
+    local jobid="$1"
+    local values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
 
     # Loop through the collected values and save the maximum.
-    max_joules=0
+    local max_joules=0
 
     printf '%s\n' "$values" | while IFS= read -r line; do
         value_joules=$(convert_to_joules "$line") || continue
@@ -130,7 +130,7 @@ slurm_get_energy_consumed() {
     done
 
     # Convert maximum to kilojoules.
-    max_human=$(convert_from_joules "$max_joules")
+    local max_human=$(convert_from_joules "$max_joules")
     echo "${max_human}J"
 }
 
@@ -150,6 +150,6 @@ slurm_profile() {
     verbose_echo "Application finished with return value: $retval"
 
     # Get energy consumed value.
-    ENERGY=$(slurm_get_energy_consumed $SLURM_JOB_ID)
-    echo -e "Energy consumption:\t$ENERGY"
+    local energy=$(slurm_get_energy_consumed $SLURM_JOB_ID)
+    echo -e "Energy consumption:\t$energy"
 }

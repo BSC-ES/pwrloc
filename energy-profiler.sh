@@ -15,10 +15,10 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 # Show how to use this program.
 show_help() {
     cat << EOF
-Usage: $(basename "$0") [-p PROFILER][-l] [-v] [--] [bin] [args]
+Usage: $(basename "$0") [-p profiler][-l] [-v] [--] [bin] [args]
 
 Options:
-  -p PROFILER   Profile using provided PROFILER
+  -p profiler   Profile using provided profiler
   -l            List availability of the supported profilers
   -v            Enable verbose mode
   -h            Show this help message and exit
@@ -36,8 +36,8 @@ EOF
 show_setup() {
     # Show setup in case of a verbose execution.
     verbose_echo "========== SETUP =========="
-    verbose_echo "PROFILER = $PROFILER"
-    verbose_echo "LIST_PROFILERS = $LIST_PROFILERS"
+    verbose_echo "profiler = $profiler"
+    verbose_echo "list_profilers = $list_profilers"
     verbose_echo "VERBOSE = $VERBOSE"
     verbose_echo "BIN = $BIN"
     verbose_echo "ARGS = $ARGS"
@@ -47,13 +47,13 @@ show_setup() {
 # Show info on the availability and setup of the supported profilers.
 show_profilers() {
     # Fetch SLURM variables.
-    SLURM_AVAIL=$(slurm_available)
-    SLURM_PTYPE=$(slurm_profiler_type)
-    SLURM_PFREQ=$(slurm_profiler_freq)
+    local slurm_avail=$(slurm_available)
+    local slurm_ptype=$(slurm_profiler_type)
+    local slurm_pfreq=$(slurm_profiler_freq)
 
-    echo "SLURM_AVAIL: $(bool_to_text $SLURM_AVAIL)"
-    echo "SLURM_PTYPE: $SLURM_PTYPE"
-    echo "SLURM_PFREQ: $SLURM_PFREQ"
+    echo "slurm_avail: $(bool_to_text $slurm_avail)"
+    echo "slurm_ptype: $slurm_ptype"
+    echo "slurm_pfreq: $slurm_pfreq"
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -62,14 +62,14 @@ main() {
     [ $# -eq 0 ] && show_help && exit 1
 
     # Default values.
-    PROFILER=""
-    LIST_PROFILERS=0
-    VERBOSE=0
+    local profiler=""
+    local list_profilers=0
+    export VERBOSE=0
 
     # Parse options.
     while getopts ":p:lvh" opt; do
         case "$opt" in
-            p) PROFILER="$OPTARG" ;;
+            p) profiler="$OPTARG" ;;
             l) show_profilers; exit 1 ;;
             v) export VERBOSE=1 ;;
             h) show_help; exit 0 ;;
@@ -81,10 +81,10 @@ main() {
 
     # Parse binary and arguments to profile, if profiler is set.
     if [ -n "$1" ]; then
-        BIN="$1"
+        local BIN="$1"
         shift
-        ARGS="$@"
-    elif [ -n "$PROFILER" ]; then
+        local ARGS="$@"
+    elif [ -n "$profiler" ]; then
         echo "Error: Missing application to profile." >&2
         show_help
         exit 1
@@ -93,8 +93,8 @@ main() {
     # Print the setup, if in VERBOSE mode.
     show_setup
 
-    # Validate the PROFILER and profile the application afterwards.
-    case "$PROFILER" in
+    # Validate the profiler and profile the application afterwards.
+    case "$profiler" in
         slurm)
             # Validate SLURM availability.
             slurm_available >/dev/null 2>&1
@@ -115,7 +115,7 @@ main() {
         "") # Variable not set.
             ;;
         *)
-            echo "Invalid profiler: $PROFILER"
+            echo "Invalid profiler: $profiler"
             echo "Valid profilers: slurm|likwid|ear"
             exit 1
             ;;
