@@ -6,7 +6,7 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR="$(cd "$(dirname "$0")" && pwd)"
+BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # Import functions from utils and the tool wrappers.
 . "$BASEDIR/utils.sh"

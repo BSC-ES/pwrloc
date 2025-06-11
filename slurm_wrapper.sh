@@ -27,11 +27,11 @@ slurm_profiler_type() {
 # Returns the sample frequency.
 slurm_profiler_freq() {
     # Try to get frequency for energy specifically.
-    P_FREQ=$(get_conf_value JobAcctGatherFrequency)
+    p_freq=$(get_conf_value JobAcctGatherFrequency)
 
-    if [ -n "$P_FREQ" ]; then
+    if [ -n "$p_freq" ]; then
         # Get energy frequency from string, if present.
-        IFS=',' set -- $P_FREQ
+        IFS=',' set -- $p_freq
         for part; do
             case "$part" in
                 energy=*) 
@@ -57,10 +57,10 @@ slurm_available() {
     fi
 
     # Check if the gather type and frequency are non-zero.
-    P_TYPE=$(slurm_profiler_type)
-    P_FREQ=$(slurm_profiler_freq)
+    p_type=$(slurm_profiler_type)
+    p_freq=$(slurm_profiler_freq)
 
-    if [ -z "$P_TYPE" ] || [ -z "$P_FREQ" ]; then
+    if [ -z "$p_type" ] || [ -z "$p_freq" ]; then
         echo 1
         return 1
     fi
@@ -70,26 +70,68 @@ slurm_available() {
     return 0
 }
 
+# Convert a ConsumedEnergy string (e.g. "123.45K") to integer joules.
+convert_to_joules() {
+    # Strip whitespace
+    string=$(printf "%s" "$1" | tr -d ' ')
+
+    # Separate numeric value and unit
+    num=$(printf "%s" "$string" | sed 's/[KMG]$//')
+    unit=$(printf "%s" "$string" | sed 's/^[0-9.]*//')
+
+    # Choose multiplier based on unit
+    case "$unit" in
+        "")  mult=1 ;;
+        K)   mult=1000 ;;
+        M)   mult=1000000 ;;
+        G)   mult=1000000000 ;;
+        *)   echo "Unknown unit: $unit" >&2; return 1 ;;
+    esac
+
+    # Convert to integer joules.
+    printf "%.0f" "$(echo "$num * $mult" | bc)"
+}
+
+# Convert integer joules into human readable unit (J, K, M, G).
+convert_from_joules() {
+    joules="$1"
+
+    if [ "$joules" -ge 1000000000 ]; then
+        unit="G"
+        divisor=1000000000
+    elif [ "$joules" -ge 1000000 ]; then
+        unit="M"
+        divisor=1000000
+    elif [ "$joules" -ge 1000 ]; then
+        unit="K"
+        divisor=1000
+    else
+        unit=""
+        divisor=1
+    fi
+
+    value=$(echo "scale=2; $joules / $divisor" | bc)
+    printf "%s%s" "$value" "$unit"
+}
+
 # Get the current energy consumption of a given job.
 slurm_get_energy_consumed() {
-    JOBID="$1"
-    VALUES=$(sacct -j "$JOBID" --format=ConsumedEnergy -nP)
-    SUM=$(echo $VALUES | paste -sd+ | bc)
-    echo "SUM: $SUM"
+    jobid="$1"
+    values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
 
-    # Go line by line and sum up the values.
-    # if [ -n "$P_FREQ" ]; then
-    #     # Get energy frequency from string, if present.
-    #     IFS='\n' set -- $P_FREQ
-    #     for part; do
-    #         case "$part" in
-    #             energy=*) 
-    #                 echo "${part#*=}"
-    #                 return 0
-    #                 ;;
-    #         esac
-    #     done
-    # fi
+    # Loop through the collected values and save the maximum.
+    max_joules=0
+
+    printf '%s\n' "$values" | while IFS= read -r line; do
+        value_joules=$(convert_to_joules "$line") || continue
+        if [ "$value_joules" -gt "$max_joules" ]; then
+            max_joules=$value_joules
+        fi
+    done
+
+    # Convert maximum to kilojoules.
+    max_human=$(convert_from_joules "$max_joules")
+    echo "$max_human"
 }
 
 # Profile given application with SLURM and return the total consumed energy.
@@ -111,13 +153,7 @@ slurm_profile() {
     local retval=$?
     verbose_echo "Application finished with return value: $retval"
 
-    # Get new energy consumed value.
-    E_END=$(slurm_get_energy_consumed $SLURM_JOB_ID)
-    verbose_echo print_info "End energy consumed:  $E_END"
-
-    # Report the consumed energy.
-    echo "Energy Profile:"
-    echo -e "\tStart:     $E_START"
-    echo -e "\tEnd:       $E_END"
-    echo -e "\tConsumed:  $E_CONSUMED"
+    # Get energy consumed value.
+    ENERGY=$(slurm_get_energy_consumed $SLURM_JOB_ID)
+    echo -e "Energy consumption:\t$ENERGY"
 }
