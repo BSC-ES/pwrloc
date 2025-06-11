@@ -131,7 +131,7 @@ slurm_get_energy_consumed() {
 
     # Convert maximum to kilojoules.
     max_human=$(convert_from_joules "$max_joules")
-    echo "$max_human"
+    echo "${max_human}J"
 }
 
 # Profile given application with SLURM and return the total consumed energy.
@@ -143,10 +143,6 @@ slurm_profile() {
         print_error "Not in a SLURM job."
         exit 1
     fi
-
-    # Get starting energy consumed value of currently running job.
-    E_START="$(slurm_get_energy_consumed $SLURM_JOB_ID)"
-    verbose_echo print_info "Start energy consumed:  $E_START"
 
     # Execute the program.
     "$@"
