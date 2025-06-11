@@ -5,9 +5,8 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-SLURM_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-. "$SLURM_DIR/utils.sh"
+BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$BASEDIR/utils.sh"
 
 # Returns the value of a given parameter from the SLURM config file.
 get_conf_value() {
@@ -144,19 +143,15 @@ slurm_get_energy_consumed() {
 # Profile given application with SLURM and return the total consumed energy.
 slurm_profile() {
     verbose_echo print_info "Profiling using SLURM.."
+    local jobid="$1"
 
     # Check if we are inside a running SLURM job.
-    if [ -z "$SLURM_JOB_ID" ]; then
-        print_error "Not in a SLURM job."
+    if [ -z "$jobid" ]; then
+        print_error "No dependency job id."
         exit 1
     fi
 
-    # Execute the program.
-    "$@"
-    local retval=$?
-    verbose_echo "Application finished with return value: $retval"
-
     # Get energy consumed value.
-    local energy=$(slurm_get_energy_consumed $SLURM_JOB_ID)
+    local energy=$(slurm_get_energy_consumed $jobid)
     echo -e "Energy consumption:\t$energy"
 }

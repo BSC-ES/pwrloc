@@ -24,11 +24,15 @@ Options:
   -h            Show this help message and exit
 
 Application:
-  [bin] [args]  Application (with arguments) to profile
+  [bin] [args]  Application (with arguments) to profile.
+                SLURM notes:
+                    - [bin] is a SLURM job id.
+                    - The dependency job id will be used if [bin] is not given.
 
 Example:
-  $(basename "$0") -p slurm echo "Hello world"
-  $(basename "$0") -p slurm -- echo "Foo Bar rules!"
+  $(basename "$0") -p slurm <slurm_job_id>
+  $(basename "$0") -p ear echo "Hello world"
+  $(basename "$0") -p ear -- echo "Foo Bar rules!"
 EOF
 }
 
@@ -39,8 +43,8 @@ show_setup() {
     verbose_echo "profiler = $profiler"
     verbose_echo "list_profilers = $list_profilers"
     verbose_echo "VERBOSE = $VERBOSE"
-    verbose_echo "BIN = $BIN"
-    verbose_echo "ARGS = $ARGS"
+    verbose_echo "bin = $bin"
+    verbose_echo "args = $args"
     verbose_echo "======== END SETUP ========\n"
 }
 
@@ -81,13 +85,24 @@ main() {
 
     # Parse binary and arguments to profile, if profiler is set.
     if [ -n "$1" ]; then
-        local BIN="$1"
+        local bin="$1"
         shift
-        local ARGS="$@"
+        local args="$@"
     elif [ -n "$profiler" ]; then
-        echo "Error: Missing application to profile." >&2
-        show_help
-        exit 1
+        # Check if a job id was passed as dependency for SLURM profiling.
+        if [ "$profiler" == "slurm" ]; then
+            local bin=$(echo "$SLURM_JOB_DEPENDENCY" | awk -F':' '{print $2}')
+
+            if [ -z "$bin" ]; then
+                print_error "Error: Missing jobid to profile." >&2
+                show_help
+                exit 1
+            fi
+        else
+            print_error "Error: Missing application to profile." >&2
+            show_help
+            exit 1
+        fi
     fi
 
     # Print the setup, if in VERBOSE mode.
@@ -102,7 +117,7 @@ main() {
                 print_error "SLURM energy accounting is not available."
                 exit 1
             fi
-            slurm_profile "$BIN" "$ARGS"
+            slurm_profile "$bin"
             ;;
         likwid)
             # Validate LIKWID availability.

@@ -20,7 +20,7 @@ function_exists() {
 # Only echo the passed string if VERBOSE is set. type "$1" 2
 verbose_echo() {
     # Turn VERBOSE output off by default.
-    [ -z "$VERBOSE" ]; VERBOSE=0
+    [ -z "$VERBOSE" ] && VERBOSE=0
 
     # Print if VERBOSE is set.
     if [ "$VERBOSE" -eq 1 ]; then

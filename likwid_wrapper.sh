@@ -5,7 +5,5 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-LIKWID_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-. "$LIKWID_DIR/utils.sh"
-
+BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$BASEDIR/utils.sh"
