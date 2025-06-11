@@ -75,6 +75,12 @@ convert_to_joules() {
     # Strip whitespace
     local string=$(printf "%s" "$1" | tr -d ' ')
 
+    # Catch empty lines.
+    if [ -z "$string" ]; then
+        echo "0"
+        return
+    fi
+
     # Separate numeric value and unit
     local num=$(printf "%s" "$string" | sed 's/[KMG]$//')
     local unit=$(printf "%s" "$string" | sed 's/^[0-9.]*//')
@@ -132,6 +138,7 @@ slurm_get_energy_consumed() {
     # Convert maximum to kilojoules.
     local max_human=$(convert_from_joules "$max_joules")
     echo "${max_human}J"
+    # echo "$max_joules"
 }
 
 # Profile given application with SLURM and return the total consumed energy.
