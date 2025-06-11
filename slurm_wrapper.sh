@@ -116,7 +116,7 @@ convert_from_joules() {
     fi
 
     local value=$(echo "scale=2; $joules / $divisor" | bc)
-    printf "%s%s" "$value" "$unit"
+    printf "%s %sJ" "$value" "$unit"
 }
 
 # Get the current energy consumption of a given job.
@@ -127,17 +127,17 @@ slurm_get_energy_consumed() {
     # Loop through the collected values and save the maximum.
     local max_joules=0
 
-    printf '%s\n' "$values" | while IFS= read -r line; do
+    while IFS= read -r line; do
+        # Filter out empty lines.
         value_joules=$(convert_to_joules "$line") || continue
         if [ "$value_joules" -gt "$max_joules" ]; then
             max_joules=$value_joules
         fi
-    done
+    done <<< "$values"
 
     # Convert maximum to kilojoules.
     local max_human=$(convert_from_joules "$max_joules")
-    echo "${max_human}J"
-    # echo "$max_joules"
+    echo "${max_human}"
 }
 
 # Profile given application with SLURM and return the total consumed energy.
@@ -150,6 +150,9 @@ slurm_profile() {
         print_error "No dependency job id."
         exit 1
     fi
+
+    # Log what job is profiled.
+    verbose_echo print_info "Profiling jobid '$jobid'.."
 
     # Get energy consumed value.
     local energy=$(slurm_get_energy_consumed $jobid)
