@@ -124,6 +124,12 @@ slurm_get_energy_consumed() {
     local jobid="$1"
     local values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
 
+    # Print more detailed energy measurements in verbose mode.
+    local verbose_values=$(
+        sacct -j "$jobid" --format=JobId%25,JobName%25,ConsumedEnergy
+    )
+    verbose_echo print_info "Energy measurements:\n$verbose_values\n" >&2
+
     # Loop through the collected values and save the maximum.
     local max_joules=0
 
