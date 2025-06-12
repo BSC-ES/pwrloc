@@ -126,7 +126,7 @@ slurm_get_energy_consumed() {
 
     # Print more detailed energy measurements in verbose mode.
     local verbose_values=$(
-        sacct -j "$jobid" --format=JobId%25,JobName%25,ConsumedEnergy
+        sacct -j "$jobid" --format=JobId%25,JobName%25,ConsumedEnergy,Elapsed
     )
     verbose_echo print_info "Energy measurements:\n$verbose_values\n" >&2
 
