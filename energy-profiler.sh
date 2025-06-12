@@ -119,6 +119,10 @@ main() {
             fi
             slurm_profile "$bin"
             ;;
+        perf)
+            # Validate perf availability.
+            # TODO
+            ;;
         likwid)
             # Validate LIKWID availability.
             # TODO
