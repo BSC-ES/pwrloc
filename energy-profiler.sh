@@ -11,6 +11,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 # Import functions from utils and the tool wrappers.
 . "$BASEDIR/utils.sh"
 . "$BASEDIR/slurm_wrapper.sh"
+. "$BASEDIR/perf_wrapper.sh"
 
 # Show how to use this program.
 show_help() {
@@ -26,7 +27,7 @@ Options:
 Application:
   [bin] [args]  Application (with arguments) to profile.
                 SLURM notes:
-                    - [bin] is a SLURM job id.
+                    - [bin] should be a SLURM job id.
                     - The dependency job id will be used if [bin] is not given.
 
 Example:
@@ -50,14 +51,22 @@ show_setup() {
 
 # Show info on the availability and setup of the supported profilers.
 show_profilers() {
-    # Fetch SLURM variables.
+    # Fetch and print SLURM variables.
     local slurm_avail=$(slurm_available)
     local slurm_ptype=$(slurm_profiler_type)
     local slurm_pfreq=$(slurm_profiler_freq)
-
+    echo -e "========== SLURM =========="
     echo "slurm_avail: $(bool_to_text $slurm_avail)"
     echo "slurm_ptype: $slurm_ptype"
-    echo "slurm_pfreq: $slurm_pfreq"
+    echo -e "slurm_pfreq: $slurm_pfreq\n"
+
+    # Fetch and print perf variables.
+    echo -e "========== PERF ==========="
+    local perf_avail=$(perf_available)
+    local perf_events=$(perf_events)
+    echo "perf_avail: $(bool_to_text $perf_avail)"
+    echo "perf_events:"
+    echo "$perf_events" | awk '{print "\t" $0}'
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -121,7 +130,12 @@ main() {
             ;;
         perf)
             # Validate perf availability.
-            # TODO
+            slurm_available >/dev/null 2>&1
+            if [ $? -eq 1 ]; then
+                print_error "perf is not available."
+                exit 1
+            fi
+            perf_profile "$bin" "$args"
             ;;
         likwid)
             # Validate LIKWID availability.

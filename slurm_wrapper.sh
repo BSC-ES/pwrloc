@@ -14,7 +14,9 @@ get_conf_value() {
     local line=$(scontrol show config | grep "$1")
     
     # Remove all before "=", then strip whitespace on both ends.
-    local value=$(echo "$line" | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//')
+    local value=$(
+        echo "$line" | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//'
+    )
     echo "$value"
 }
 
@@ -52,6 +54,7 @@ slurm_available() {
     # Check if the plugin is set within the SLURM config.
     if ! function_exists scontrol; then
         print_warning "Function 'scontrol' not available."
+        echo 1
         return 1
     fi
 
