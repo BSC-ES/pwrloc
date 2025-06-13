@@ -92,7 +92,7 @@ perf_profile() {
     local rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
     local tmp_dir="tmp.$job"
     mkdir -p "$tmp_dir"
-    echo "$energy" > "$tmp_dir/rank_$rank.tmp"
+    echo "$energy" > "$tmp_dir/rank_$rank.out"
 
     # If rank 0, wait for all files, then gather values and remove them.
     if [ "$rank" -eq "0" ]; then
