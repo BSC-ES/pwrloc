@@ -121,8 +121,8 @@ main() {
     case "$profiler" in
         slurm)
             # Validate SLURM availability.
-            slurm_available >/dev/null 2>&1
-            if [ $? -eq 1 ]; then
+            #  >/dev/null 2>&1
+            if [[ "$slurm_available" == "1" ]]; then
                 print_error "SLURM energy accounting is not available."
                 exit 1
             fi
@@ -130,8 +130,7 @@ main() {
             ;;
         perf)
             # Validate perf availability.
-            perf_available >/dev/null 2>&1
-            if [ $? -eq 1 ]; then
+            if [[ "$perf_available" == "1" ]]; then
                 print_error "perf is not available."
                 exit 1
             fi

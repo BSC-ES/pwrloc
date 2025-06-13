@@ -10,8 +10,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # Returns the sample frequency.
 perf_events() {
-    local events=$(perf list | grep energy | awk '{print $1}')
-    echo "$events"
+    echo "$(perf list | grep energy | awk '{print $1}')"
 }
 
 # Returns 0 if perf is available, 1 otherwise.
@@ -20,11 +19,11 @@ perf_available() {
 
     # Check if the plugin is set within the SLURM config.
     if ! function_exists perf; then
-        echo 1
+        echo "1"
         return 1
     fi
 
-    echo 0
+    echo "0"
     return 0
 }
 
@@ -33,10 +32,10 @@ get_energy_consumed() {
     local events=$(perf_events)
     local perf_stat_events=$(echo "$events" | awk '{print " -e " $0}')
     perf_stat_events=$(echo $perf_stat_events | tr '\n' ' ')
-    
+
     # Profile the binary with perf and store in stdout.
     local perf_out=$(perf stat -e $perf_stat_events -- "$bin" "$args" 2>&1)
-    
+
     # Extract the energy values from the perf output.
     local energy=$(echo "$perf_out" | sed -n 's/^\(.*\) Joules.*/\1/p')
 
@@ -84,13 +83,14 @@ gather_results() {
     done
 
     # Merge the energy logs into one, starting by own file.
-    local energy_total=$(sanitize_energy_values "$tmp_dir/rank_0.out")
-    local energy_input=""
-    
+    local energy_total=( $(sanitize_energy_values "$tmp_dir/rank_0.out") )
+    local energy_input=()
+
     for ((i=2; i<=num_ranks; i++)); do
-        energy_input=$(sanitize_energy_values "$tmp_dir/rank_$i.out")        
+        energy_input=( $(sanitize_energy_values "$tmp_dir/rank_$i.out") )
         for i in "${!energy_input[@]}"; do
-            energy_total[i]=$(( energy_total[i] + energy_input[i] ))
+            # energy_total[i]=$(awk "BEGIN{ print ${energy_total[i]} + ${energy_input[i]} }")
+            energy_total[i]=$(( ${energy_total[i]} + ${energy_input[i]} ))
         done
     done
 
@@ -114,14 +114,12 @@ perf_profile() {
     # Only rank 0 combines the results.
     if [ "$rank" -eq "0" ]; then
         # Wait for all result files, then gather values and remove the files.
-        local energy_total=$(gather_results "$tmp_dir")
+        local energy_total=( $(gather_results "$tmp_dir") )
 
         # Get the events and print the values side-by-side.
         local events=$(perf_events)
-
-        # Read newline-separated strings into arrays.
+        local event_array=()
         readarray -t event_array <<< "$events"
-        readarray -t energy_array <<< "$energy_total"
 
         # Find the longest event name for aligning the print.
         local max_len=0
@@ -133,7 +131,7 @@ perf_profile() {
         echo "Energy consumption:"
         for i in "${!event_array[@]}"; do
             printf "\t%-${max_len}s\t%s\n" "${event_array[$i]}:" \
-                "${energy_array[$i]}"
+                "${energy_total[$i]}"
         done
     fi
 }

@@ -5,7 +5,7 @@
 
 # Transform boolean numbers into text.
 bool_to_text() {
-    if [ "$1" -eq "0" ]; then
+    if [[ "$1" == "0" ]]; then
         echo "TRUE"
     else
         echo "FALSE"
@@ -134,10 +134,8 @@ convert_from_joules() {
 # Check if the provided number is numerical.
 is_numerical() {
     if [[ "$1" =~ ^[-+]?[0-9]*\.?[0-9]+$ ]]; then
-        echo 0
         return 0
     else
-        echo 1
         return 1
     fi
 }

@@ -54,7 +54,7 @@ slurm_available() {
     # Check if the plugin is set within the SLURM config.
     if ! function_exists scontrol; then
         print_warning "Function 'scontrol' not available."
-        echo 1
+        echo "1"
         return 1
     fi
 
@@ -63,12 +63,12 @@ slurm_available() {
     local p_freq=$(slurm_profiler_freq)
 
     if [ -z "$p_type" ] || [ -z "$p_freq" ]; then
-        echo 1
+        echo "1"
         return 1
     fi
 
     # If everything is present, than the energy accounting is enabled.
-    echo 0
+    echo "0"
     return 0
 }
 
