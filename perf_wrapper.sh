@@ -28,8 +28,8 @@ perf_available() {
     return 0
 }
 
-# Profile given application with perf and return the total consumed energy.
-perf_profile() {
+# Get the consumed energy for this rank (which can be total execution).
+get_energy_consumed() {
     local events=$(perf_events)
     local perf_stat_events=$(echo "$events" | awk '{print " -e " $0}')
     perf_stat_events=$(echo $perf_stat_events | tr '\n' ' ')
@@ -65,4 +65,38 @@ perf_profile() {
         printf "\t%-${max_len}s\t%s\n" "${event_array[$i]}:" \
             "${energy_array[$i]}"
     done
+}
+
+# Function called by rank 0 to gather all collected results and remove the dir.
+gather_results() {
+    tmp_dir="$1"
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
+    while true; do
+        file_count=$(find "$tmp_dir" -maxdepth 1 -type f | wc -l)
+        if (( file_count >= num_ranks )); then
+            echo "Found $file_count files. Proceeding..."
+            break
+        fi
+        sleep 0.5
+    done
+}
+
+# Profile given application with perf and return the total consumed energy.
+perf_profile() {
+    # Acquire energy consumed for this rank (or total exection without MPI).
+    energy=$(get_energy_consumed)
+
+    # Get job and rank ID and write to output file.
+    local job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"r$RANDOM"}}}
+    local rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+    local tmp_dir="tmp.$job"
+    mkdir -p "$tmp_dir"
+    echo "$energy" > "$tmp_dir/rank_$rank.tmp"
+
+    # If rank 0, wait for all files, then gather values and remove them.
+    if [ "$rank" -eq "0" ]; then
+        energy_total=$(gather_results "$tmp_dir")
+        echo "$energy_total"
+    fi
 }
