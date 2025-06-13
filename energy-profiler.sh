@@ -64,7 +64,7 @@ show_profilers() {
     echo -e "========== PERF ==========="
     local perf_avail=$(perf_available)
     local perf_events=$(perf_events)
-    echo "perf_avail: $(bool_to_text $perf_avail)"
+    echo "perf_avail: $(bool_to_text $perf_avail)"  # TODO: No integer?
     echo "perf_events:"
     echo "$perf_events" | awk '{print "\t" $0}'
 }
@@ -130,7 +130,7 @@ main() {
             ;;
         perf)
             # Validate perf availability.
-            slurm_available >/dev/null 2>&1
+            perf_available >/dev/null 2>&1
             if [ $? -eq 1 ]; then
                 print_error "perf is not available."
                 exit 1
