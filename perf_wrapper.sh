@@ -87,10 +87,9 @@ gather_results() {
     local energy_input=()
 
     for ((i=2; i<=num_ranks; i++)); do
-        energy_input=( $(sanitize_energy_values "$tmp_dir/rank_$i.out") )
+        energy_input=( $(sanitize_energy_values "$tmp_dir/rank_$((i - 1)).out") )
         for i in "${!energy_input[@]}"; do
-            # energy_total[i]=$(awk "BEGIN{ print ${energy_total[i]} + ${energy_input[i]} }")
-            energy_total[i]=$(( ${energy_total[i]} + ${energy_input[i]} ))
+            energy_total[i]="$(echo "${energy_total[i]} + ${energy_input[i]}" | bc)"
         done
     done
 
