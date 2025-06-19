@@ -62,6 +62,10 @@ slurm_available() {
     local p_type=$(slurm_profiler_type)
     local p_freq=$(slurm_profiler_freq)
 
+    # TODO: If type exists, see what's after the slash. E.g.:
+    #   - acct_gather_energy/ipmi
+    #   - acct_gather_energy/none
+
     if [ -z "$p_type" ] || [ -z "$p_freq" ]; then
         echo "1"
         return 1
