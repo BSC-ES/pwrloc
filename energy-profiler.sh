@@ -12,6 +12,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 . "$BASEDIR/utils.sh"
 . "$BASEDIR/slurm_wrapper.sh"
 . "$BASEDIR/perf_wrapper.sh"
+. "$BASEDIR/papi_wrapper.sh"
 
 # Show how to use this program.
 show_help() {
@@ -32,8 +33,8 @@ Application:
 
 Example:
   $(basename "$0") -p slurm <slurm_job_id>
-  $(basename "$0") -p ear echo "Hello world"
-  $(basename "$0") -p ear -- echo "Foo Bar rules!"
+  $(basename "$0") -p perf echo "Hello world"
+  $(basename "$0") -p perf -- echo "Foo Bar rules!"
 EOF
 }
 
@@ -121,7 +122,6 @@ main() {
     case "$profiler" in
         slurm)
             # Validate SLURM availability.
-            #  >/dev/null 2>&1
             if [[ "$slurm_available" == "1" ]]; then
                 print_error "SLURM energy accounting is not available."
                 exit 1
@@ -129,15 +129,27 @@ main() {
             slurm_profile "$bin"
             ;;
         perf)
-            # Validate perf availability.
+            # Validate PERF availability.
             if [[ "$perf_available" == "1" ]]; then
                 print_error "perf is not available."
                 exit 1
             fi
             perf_profile "$bin" "$args"
             ;;
+        papi)
+            # Validate PAPI availability.
+            if [[ "$papi_available" == "1" ]]; then
+                print_error "papi is not available."
+                exit 1
+            fi
+            papi_profile "$bin" "$args"
+            ;;
         likwid)
             # Validate LIKWID availability.
+            # TODO
+            ;;
+        meric)
+            # Validate MERIC availability.
             # TODO
             ;;
         ear)
@@ -148,7 +160,7 @@ main() {
             ;;
         *)
             echo "Invalid profiler: $profiler"
-            echo "Valid profilers: slurm|likwid|ear"
+            echo "Valid profilers: slurm|perf|papi"
             exit 1
             ;;
     esac

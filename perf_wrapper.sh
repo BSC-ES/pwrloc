@@ -8,16 +8,11 @@
 BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 . "$BASEDIR/utils.sh"
 
-# Returns the sample frequency.
-perf_events() {
-    echo "$(perf list | grep energy | awk '{print $1}')"
-}
-
 # Returns 0 if perf is available, 1 otherwise.
 perf_available() {
     verbose_echo print_info "Checking for perf availability.."
 
-    # Check if the plugin is set within the SLURM config.
+    # Check if the perf command is available.
     if ! function_exists perf; then
         echo "1"
         return 1
@@ -25,6 +20,11 @@ perf_available() {
 
     echo "0"
     return 0
+}
+
+# Returns the sample frequency.
+perf_events() {
+    echo "$(perf list | grep energy | awk '{print $1}')"
 }
 
 # Get the consumed energy for this rank (which can be total execution).
