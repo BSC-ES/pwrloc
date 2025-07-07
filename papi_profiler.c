@@ -12,6 +12,11 @@
 
 int ARGV_PROGRAM_IDX = 2;
 
+struct event {
+    char* name;
+    int scalar;
+};
+
 
 /* Concatenate the arguments defining the program and args to be profiled. */
 void concat_program_args(int argc, char** argv, char** program) {
@@ -89,7 +94,7 @@ void parse_input(int argc, char** argv, char** command, char** program) {
 
 /* Create a PAPI event set and return the number of valid events. */
 int create_papi_eventset(
-    int* eventset, int num_events, char** events, char** supported_events, 
+    int* eventset, int num_events, char** events, char** events, 
     bool print_events
 ) {
     /* Create PAPI event set. */
@@ -110,7 +115,7 @@ int create_papi_eventset(
                 events[i], PAPI_strerror(retval)
             );
         } else {
-            supported_events[valid_events++] = events[i];
+            events[valid_events++] = events[i];
             
             if (print_events) {
                 printf("%s\n", events[i]);
@@ -141,25 +146,40 @@ int main(int argc, char** argv) {
 
     /* Create event set with supported energy profiling events. */
     int eventset = PAPI_NULL;
-    char* events[] = {
+    struct event rapl_pkg = {"rapl::RAPL_ENERGY_PKG", 2**-32}
+    struct event rapl_dram = {"rapl::RAPL_ENERGY_DRAM", 2**-32}
+    struct event rapl_dram = {"cray_rapl:::PACKAGE_ENERGY", 10**-9}
+    struct event rapl_dram = {"cray_rapl:::PP0_ENERGY", 10**-9}
+
+    char* all_event_names[] = {
         /* Intel and AMD counters. */
-        "rapl::RAPL_ENERGY_PKG", "rapl::RAPL_ENERGY_DRAM",
+        "rapl::RAPL_ENERGY_PKG", 
+        "rapl::RAPL_ENERGY_DRAM",
         /* Cray counters. */
-        "cray_rapl:::PACKAGE_ENERGY", "cray_rapl:::PP0_ENERGY",
+        "cray_rapl:::PACKAGE_ENERGY",
+        "cray_rapl:::PP0_ENERGY",
     };
-    int num_events = sizeof(events) / sizeof(events[0]);
-    char* supported_events[num_events];
+    int all_event_scalars[] = {
+        /* Intel and AMD counters. */
+        2**-32, 
+        2**-32,
+        /* Cray counters. */
+        10**-9,
+        10**-9,
+    };
+    int num_events = sizeof(all_events) / sizeof(all_events[0]);
+    struct event* events[num_events];
 
     /* Print eventset if specified, else profile application. */
     if (strcmp(command, "get_events") == 0) {
         /* Create PAPI event set and print events to stdout. */
         create_papi_eventset(
-            &eventset, num_events, events, supported_events, true
+            &eventset, num_events, all_events, events, true
         );
     } else {
         /* Create PAPI event set and check if there are valid events. */
         num_events = create_papi_eventset(
-            &eventset, num_events, events, supported_events, false
+            &eventset, num_events, events, events, false
         );
         if (num_events == 0) {
             fprintf(stderr, "No supported events to profile.\n");
@@ -200,7 +220,7 @@ int main(int argc, char** argv) {
 
         /* Print measured results. */
         for (int i = 0; i < num_events; i++) {
-            printf("%s: %lld\n", supported_events[i], values[i]);
+            printf("%s: %lld\n", events[i].name, values[i] * events[i].scalar);
         }
     }
 

@@ -62,19 +62,19 @@ show_profilers() {
     echo -e "slurm_pfreq: $slurm_pfreq\n"
 
     # Fetch and print PERF variables.
-    echo -e "========== PERF ==========="
     local perf_avail=$(perf_available)
     local perf_events=$(perf_events)
-    echo "perf_avail: $(bool_to_text $perf_avail)"  # TODO: No integer?
+    echo -e "========== PERF ==========="
+    echo "perf_avail: $(bool_to_text $perf_avail)"
     echo "perf_events:"
     echo "$perf_events" | awk '{print "\t" $0}'
     echo ""
 
     # Fetch and print PAPI variables.
-    echo -e "========== PAPI ==========="
     local papi_avail=$(papi_available)
     local papi_events=$(papi_events)
-    echo "papi_avail: $(bool_to_text "$papi_avail")"  # TODO: No integer?
+    echo -e "========== PAPI ==========="
+    echo "papi_avail: $(bool_to_text "$papi_avail")"
     echo "papi_events:"
     echo "$papi_events" | awk '{print "\t" $0}'
     echo ""
