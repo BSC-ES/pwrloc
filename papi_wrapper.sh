@@ -44,7 +44,7 @@ _parse_papi_unit_to_joules() {
         local base="${BASH_REMATCH[1]}"
         local exponent="${BASH_REMATCH[2]}"
         # local exponent=$(echo "$unit" | sed -E "s/^${base}\^\((-?[0-9]+)\).*$/\1/")
-        echo "scale=20; $base^($exponent)" | bc -l
+        echo "scale=20; $base^($exponent)" | bc -l | sed 's/^\./0./'
         return
     fi
 
@@ -120,7 +120,7 @@ _parse_papi_native_avail() {
 
 # Return the set of energy events supported by this system.
 papi_events() {
-    $(_parse_papi_native_avail "events")
+    _parse_papi_native_avail "events"
 }
 
 # Profile the provided binary with PAPI counters.
@@ -136,8 +136,8 @@ papi_profile() {
     fi
 
     # Make sure the papi_profiler is updated and compiled.
-    # _compile_papi_profiler
+    _compile_papi_profiler
 
     # Profile binary with supported events.
-    # "$PAPI_PROFILER" "$events" "$units" $@
+    "$PAPI_PROFILER" "$events" "$units" $@
 }

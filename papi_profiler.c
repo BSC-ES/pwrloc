@@ -14,9 +14,24 @@ int ARGV_PROGRAM_IDX = 3;
 
 struct event {
     char* name;
-    int scalar;
+    char* unit;
 };
 
+
+/* Count the number of words in a string. */
+int count_words(char* input, const char* delims) {
+    char* input_dup = strdup(input);
+    char* save_ptr;
+    int count = 0;
+
+    char* token = strtok_r(input_dup, delims, &save_ptr);
+    while (token != NULL) {
+        count++;
+        token = strtok_r(NULL, delims, &save_ptr);
+    }
+
+    return count;
+}
 
 /* Concatenate the arguments defining the program and args to be profiled. */
 void concat_program_args(int argc, char** argv, char** program) {
@@ -61,10 +76,10 @@ void concat_program_args(int argc, char** argv, char** program) {
     }
 }
 
-/* Parse user input. */
-void parse_input(
-    int argc, char** argv, struct event** events, char** program,
-) {
+/* Parse user input into list of events and the program to profile. 
+ * Returns the number of events. 
+ */
+int parse_input(int argc, char** argv, struct event** events, char** program) {
     /* Return if there are no events and units to profile. */
     if (argc < 3) {
         fprintf(stderr, "No events and units specified.\n");
@@ -74,26 +89,43 @@ void parse_input(
         exit(EXIT_FAILURE);
     }
 
+    /* Allocate events. */
+    int num_events = count_words(argv[1], "\n");
+    *events = malloc(sizeof(struct event) * num_events);
+    if (!*events) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+    }
+
     /* Parse events and units per combination into one array. */
-    char* events = strtok(argv[1], " ");
-    char* units = strtok(argv[2], " ");
+    char* event_str = argv[1];
+    char* event_save;
+    char* unit_str = argv[2];
+    char* unit_save;
+
+    /* Use thread-safe strtok_r to allow for parsing two lists concurrently. */
+    char* event_token = strtok_r(event_str, "\n", &event_save);
+    char* unit_token = strtok_r(unit_str, "\n", &unit_save);
+    num_events = 0;
     
-    while (events != NULL && units != NULL) {
+    while (event_token != NULL && unit_token != NULL) {
+        /* Store values in array of structs. */
+        (*events)[num_events].name = event_token;
+        (*events)[num_events++].unit = unit_token;
 
         /* Move to the next iteration. */
-        events = strtok(NULL, " ");
-        units = strtok(NULL, " ");
+        event_token = strtok_r(NULL, "\n", &event_save);
+        unit_token = strtok_r(NULL, "\n", &unit_save);
     }
 
     /* Concatenate all program arguments into one string. */
     concat_program_args(argc, argv, program);
+    
+    return num_events;
 }
 
 /* Create a PAPI event set and return the number of valid events. */
-int create_papi_eventset(
-    int* eventset, int num_events, char** events, char** events, 
-    bool print_events
-) {
+int create_papi_eventset(int* eventset, int num_events, struct event** events) {
     /* Create PAPI event set. */
     int retval = PAPI_create_eventset(eventset);
     if (retval != PAPI_OK) {
@@ -102,114 +134,115 @@ int create_papi_eventset(
     }
 
     /* Add counters to even set and ignore the unsupported ones. */
-    int valid_events = 0;
+    int num_valid_events = 0;
     for (int i = 0; i < num_events; i++) {
-        retval=PAPI_add_named_event(*eventset, events[i]);
+        retval = PAPI_add_named_event(*eventset, (*events)[i].name);
         if (retval != PAPI_OK) {
             fprintf(
                 stderr, 
                 "Error adding %s: %s - (ignoring)\n", 
-                events[i], PAPI_strerror(retval)
+                (*events)[i].name, PAPI_strerror(retval)
             );
+
+            /* Mark event entry as unsupported. */
+            (*events)[i].name = NULL;
         } else {
-            events[valid_events++] = events[i];
-            
-            if (print_events) {
-                printf("%s\n", events[i]);
-            }
+            num_valid_events++;
         }
     }
 
-    return valid_events;
+    /* Remove unsupported events from the events list. */
+    struct event* valid_events = 
+        malloc(sizeof(struct event) * num_valid_events);
+    int valid_counter = 0;
+    
+    for (int i = 0; i < num_events; i++) {
+        if ((*events)[i].name != NULL) {
+            valid_events[valid_counter].name = (*events)[i].name;
+            valid_events[valid_counter++].unit = (*events)[i].unit;
+        }
+    }
+
+    /* Swap events for updated array and return the new array length. */
+    free(*events);
+    events = &valid_events;
+    return num_valid_events;
 }
 
-/* Usage:
- *  - ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ..] 
- */
+/* Usage:   ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ..] */
 int main(int argc, char** argv) {
     /* Parse user input. 
      * NOTE: This mallocs events and program! 
      */
     struct event* events = NULL;
     char* program = NULL;
-    parse_input(argc, argv, &events, &program);
+    int num_events = parse_input(argc, argv, &events, &program);
 
-    // /* Initialize PAPI library, check for errors. */
-    // int retval = PAPI_library_init(PAPI_VER_CURRENT);
-    // if (retval != PAPI_VER_CURRENT) {
-    //     fprintf(stderr, "Error initializing PAPI: %s\n", PAPI_strerror(retval));
-    //     if (events != NULL) free(events);
-    //     if (program != NULL) free(program);
-    //     return EXIT_FAILURE;
-    // }
+    /* Initialize PAPI library, check for errors. */
+    int retval = PAPI_library_init(PAPI_VER_CURRENT);
+    if (retval != PAPI_VER_CURRENT) {
+        fprintf(stderr, "Error initializing PAPI: %s\n", PAPI_strerror(retval));
+        if (events != NULL) free(events);
+        if (program != NULL) free(program);
+        return EXIT_FAILURE;
+    }
 
-    // /* Create event set with supported energy profiling events. */
-    // int eventset = PAPI_NULL;
-    // int num_events = sizeof(all_events) / sizeof(all_events[0]);
-    // struct event* events[num_events];
+    /* Create PAPI event set and update events list with valid ones. */
+    int eventset = PAPI_NULL;
+    num_events = create_papi_eventset(&eventset, num_events, &events);
+    if (num_events == 0) {
+        fprintf(stderr, "No supported PAPI events to profile.\n");
 
-    // /* Print eventset if specified, else profile application. */
-    // if (strcmp(command, "get_events") == 0) {
-    //     /* Create PAPI event set and print events to stdout. */
-    //     create_papi_eventset(
-    //         &eventset, num_events, all_events, events, true
-    //     );
-    // } else {
-    //     /* Create PAPI event set and check if there are valid events. */
-    //     num_events = create_papi_eventset(
-    //         &eventset, num_events, events, events, false
-    //     );
-    //     if (num_events == 0) {
-    //         fprintf(stderr, "No supported events to profile.\n");
-    //         if (events != NULL) free(events);
-    //         if (program != NULL) free(program);
-    //         return EXIT_FAILURE;
-    //     }
+        // TODO: Double free on events? To do with swapping?
+        // if (events != NULL) free(events);
+        if (program != NULL) free(program);
+        return EXIT_FAILURE;
+    }
 
-    //     /* Reset PAPI counters. */
-    //     retval = PAPI_reset(eventset);
-    //     if (retval != PAPI_OK) {
-    //         fprintf(stderr,"Error resetting PAPI: %s\n", PAPI_strerror(retval));
-    //     }
+    /* Reset PAPI counters. */
+    retval = PAPI_reset(eventset);
+    if (retval != PAPI_OK) {
+        fprintf(stderr,"Error resetting PAPI: %s\n", PAPI_strerror(retval));
+    }
 
-    //     /* Start tracking PAPI counters. */
-    //     retval = PAPI_start(eventset);
-    //     if (retval != PAPI_OK) {
-    //         fprintf(stderr,"Error starting PAPI: %s\n", PAPI_strerror(retval));
-    //     }
+    /* Start tracking PAPI counters. */
+    retval = PAPI_start(eventset);
+    if (retval != PAPI_OK) {
+        fprintf(stderr,"Error starting PAPI: %s\n", PAPI_strerror(retval));
+    }
 
-    //     /* Execute application. */
-    //     // TODO: Fix security problems with system call!
-    //     retval = system(program);
-    //     if (retval != EXIT_SUCCESS) {
-    //         fprintf(stderr, "The user's program failed.\n");
-    //     }
+    /* Execute application. */
+    // TODO: Fix security problems with system call!
+    retval = system(program);
+    if (retval != EXIT_SUCCESS) {
+        fprintf(stderr, "The user's program failed.\n");
+    }
 
-    //     /* Stop tracking counters. */
-    //     long long values[num_events];
-    //     retval=PAPI_stop(eventset, values);
-    //     if (retval!=PAPI_OK) {
-    //         fprintf(stderr,"Error stopping:  %s\n", PAPI_strerror(retval));
-    //         if (events != NULL) free(events);
-    //         if (program != NULL) free(program);
-    //         PAPI_cleanup_eventset(eventset);
-    //         PAPI_destroy_eventset(&eventset);
-    //         PAPI_shutdown();
-    //         return EXIT_FAILURE;
-    //     }
+    /* Stop tracking counters. */
+    long long values[num_events];
+    retval = PAPI_stop(eventset, values);
+    if (retval != PAPI_OK) {
+        fprintf(stderr,"Error stopping:  %s\n", PAPI_strerror(retval));
+        if (events != NULL) free(events);
+        if (program != NULL) free(program);
+        PAPI_cleanup_eventset(eventset);
+        PAPI_destroy_eventset(&eventset);
+        PAPI_shutdown();
+        return EXIT_FAILURE;
+    }
 
-    //     /* Print measured results. */
-    //     for (int i = 0; i < num_events; i++) {
-    //         printf("%s: %lld\n", events[i].name, values[i] * events[i].scalar);
-    //     }
-    // }
+    /* Print measured results. */
+    for (int i = 0; i < num_events; i++) {
+        /* TODO:  * events[i].scalar */
+        printf("%s: %lld\n", events[i].name, values[i]);
+    }
 
-    // /* Clean up. */
-    // if (events != NULL) free(events);
-    // if (program != NULL) free(program);
-    // PAPI_cleanup_eventset(eventset);
-    // PAPI_destroy_eventset(&eventset);
-    // PAPI_shutdown();
+    /* Clean up. */
+    if (events != NULL) free(events);
+    if (program != NULL) free(program);
+    PAPI_cleanup_eventset(eventset);
+    PAPI_destroy_eventset(&eventset);
+    PAPI_shutdown();
 
     return EXIT_SUCCESS;
 }
