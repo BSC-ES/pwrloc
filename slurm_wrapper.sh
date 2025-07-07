@@ -77,7 +77,7 @@ slurm_available() {
 }
 
 # Get the current energy consumption of a given job.
-slurm_get_energy_consumed() {
+_slurm_get_energy_consumed() {
     local jobid="$1"
     local values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
 
@@ -118,6 +118,6 @@ slurm_profile() {
     verbose_echo print_info "Profiling jobid '$jobid'.."
 
     # Get energy consumed value.
-    local energy=$(slurm_get_energy_consumed $jobid)
+    local energy=$(_slurm_get_energy_consumed $jobid)
     echo -e "Energy consumption:\t$energy"
 }

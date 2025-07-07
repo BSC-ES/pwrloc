@@ -5,7 +5,7 @@
 
 # Transform boolean numbers into text.
 bool_to_text() {
-    if [[ "$1" == "0" ]]; then
+    if [[ "$1" -eq "0" ]]; then
         echo "TRUE"
     else
         echo "FALSE"
@@ -28,12 +28,12 @@ verbose_echo() {
         if [ "$#" -eq 2 ]; then
             # Make sure the function exists, otherwise resort to a normal echo.
             if function_exists "$1"; then
-                "$1" "$2"
+                "$1" "$2" 1>&2
             else
-                echo -e "$2"
+                echo -e "$2" 1>&2
             fi
         else
-            echo -e "$1"
+            echo -e "$1" 1>&2
         fi
     fi
 }

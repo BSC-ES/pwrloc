@@ -28,7 +28,7 @@ perf_events() {
 }
 
 # Get the consumed energy for this rank (which can be total execution).
-get_energy_consumed() {
+_get_energy_consumed() {
     local events=$(perf_events)
     local perf_stat_events=$(echo "$events" | awk '{print " -e " $0}')
     perf_stat_events=$(echo $perf_stat_events | tr '\n' ' ')
@@ -52,7 +52,7 @@ get_energy_consumed() {
 }
 
 # Reads energy values from given file and prints them sanitized.
-sanitize_energy_values() {
+_sanitize_energy_values() {
     local energy_input=$(cat "$1")
     readarray -t energy_array <<< "$energy_input"
 
@@ -68,7 +68,7 @@ sanitize_energy_values() {
 
 # Gather all collected results and delete the temporary directory.
 #   !! This function should only be called by rank 0. !!
-gather_results() {
+_gather_results() {
     local tmp_dir="$1"
     local num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
     local file_count=0
@@ -83,11 +83,11 @@ gather_results() {
     done
 
     # Merge the energy logs into one, starting by own file.
-    local energy_total=( $(sanitize_energy_values "$tmp_dir/rank_0.out") )
+    local energy_total=( $(_sanitize_energy_values "$tmp_dir/rank_0.out") )
     local energy_input=()
 
     for ((i=2; i<=num_ranks; i++)); do
-        energy_input=( $(sanitize_energy_values "$tmp_dir/rank_$((i - 1)).out") )
+        energy_input=( $(_sanitize_energy_values "$tmp_dir/rank_$((i - 1)).out") )
         for i in "${!energy_input[@]}"; do
             energy_total[i]="$(echo "${energy_total[i]} + ${energy_input[i]}" | bc)"
         done
@@ -101,7 +101,7 @@ gather_results() {
 # Profile given application with perf and return the total consumed energy.
 perf_profile() {
     # Acquire energy consumed for this rank (or total exection without MPI).
-    energy=$(get_energy_consumed)
+    energy=$(_get_energy_consumed)
 
     # Get job and rank ID and write to output file.
     local job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"r$RANDOM"}}}
@@ -113,7 +113,7 @@ perf_profile() {
     # Only rank 0 combines the results.
     if [ "$rank" -eq "0" ]; then
         # Wait for all result files, then gather values and remove the files.
-        local energy_total=( $(gather_results "$tmp_dir") )
+        local energy_total=( $(_gather_results "$tmp_dir") )
 
         # Get the events and print the values side-by-side.
         local events=$(perf_events)

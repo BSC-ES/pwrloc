@@ -4,12 +4,13 @@
  * -----------------------------------------------------------------------------
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <papi.h>
 #include <string.h>
 #include <stdbool.h>
 
-int ARGV_PROGRAM_IDX = 3;
+int ARGV_PROGRAM_IDX = 2;
 
 
 /* Concatenate the arguments defining the program and args to be profiled. */
@@ -132,7 +133,7 @@ int main(int argc, char** argv) {
 
     /* Initialize PAPI library, check for errors. */
     int retval = PAPI_library_init(PAPI_VER_CURRENT);
-    if (retval != PAPI_OK) {
+    if (retval != PAPI_VER_CURRENT) {
         fprintf(stderr, "Error initializing PAPI: %s\n", PAPI_strerror(retval));
         if (program != NULL) free(program);
         return EXIT_FAILURE;
@@ -179,6 +180,7 @@ int main(int argc, char** argv) {
         }
 
         /* Execute application. */
+        // TODO: Fix security problems with system call!
         retval = system(program);
         if (retval != EXIT_SUCCESS) {
             fprintf(stderr, "The user's program failed.\n");
@@ -190,7 +192,7 @@ int main(int argc, char** argv) {
         if (retval!=PAPI_OK) {
             fprintf(stderr,"Error stopping:  %s\n", PAPI_strerror(retval));
             if (program != NULL) free(program);
-            PAPI_cleanup_eventset(&eventset);
+            PAPI_cleanup_eventset(eventset);
             PAPI_destroy_eventset(&eventset);
             PAPI_shutdown();
             return EXIT_FAILURE;
@@ -204,7 +206,7 @@ int main(int argc, char** argv) {
 
     /* Clean up. */
     if (program != NULL) free(program);
-    PAPI_cleanup_eventset(&eventset);
+    PAPI_cleanup_eventset(eventset);
     PAPI_destroy_eventset(&eventset);
     PAPI_shutdown();
 
