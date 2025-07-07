@@ -72,7 +72,8 @@ papi_profile() {
     fi
 
     # Compile papi_profiler.c.
-    cc papi_profiler.c -o papi_profiler -lpapi
+    cc "$BASEDIR/papi_profiler.c" -o "$BASEDIR/papi_profiler" -lpapi
+    chmod +x "$BASEDIR/papi_profiler"
 
     # Profile binary with supported events.
     ./papi_profiler "$found_events" $@
