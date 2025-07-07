@@ -165,7 +165,7 @@ int create_papi_eventset(int* eventset, int num_events, struct event** events) {
 
     /* Swap events for updated array and return the new array length. */
     free(*events);
-    events = &valid_events;
+    *events = valid_events;
     return num_valid_events;
 }
 
@@ -192,9 +192,7 @@ int main(int argc, char** argv) {
     num_events = create_papi_eventset(&eventset, num_events, &events);
     if (num_events == 0) {
         fprintf(stderr, "No supported PAPI events to profile.\n");
-
-        // TODO: Double free on events? To do with swapping?
-        // if (events != NULL) free(events);
+        if (events != NULL) free(events);
         if (program != NULL) free(program);
         return EXIT_FAILURE;
     }
