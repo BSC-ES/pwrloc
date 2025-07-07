@@ -140,7 +140,7 @@ int create_papi_eventset(int* eventset, int num_events, struct event** events) {
         if (retval != PAPI_OK) {
             fprintf(
                 stderr, 
-                "Error adding %s: %s - (ignoring)\n", 
+                "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
                 (*events)[i].name, PAPI_strerror(retval)
             );
 
