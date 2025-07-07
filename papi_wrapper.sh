@@ -66,6 +66,12 @@ _parse_papi_unit_to_joules() {
 
 # Parse papi_native_avail for RAPL related events and their unit scalars.
 _parse_papi_native_avail() {
+    # Support for 3 different output modes:
+    #   - "events": Only print the event names.
+    #   - "units":  Only print the units.
+    #   - "both":   Print both names and units separated by " : ".
+    local mode="$1"
+
     # Locals for parsing each event.
     local in_event=0
     local event_name=""
@@ -96,7 +102,16 @@ _parse_papi_native_avail() {
 
             # Detect the end of the event block.
             if [[ "$line" =~ ^[-=]+$ ]]; then
-                echo "$event_name : $units"
+                # Print found values.
+                if [ "$mode" = "events" ]; then
+                    echo "$event_name"
+                elif [ "$mode" = "units" ]; then
+                    echo "$units"
+                else
+                    echo "$event_name : $units"
+                fi
+
+                # Reset event block detection.
                 in_event=0
             fi
         fi
@@ -105,24 +120,24 @@ _parse_papi_native_avail() {
 
 # Return the set of energy events supported by this system.
 papi_events() {
-    # _parse_papi_native_avail
-    events=$(_parse_papi_native_avail)
-    echo "$events"
-
-
-#    # Make sure the papi_profiler is updated and compiled.
-#     _compile_papi_profiler
-
-#     # Print supported events to stdout.
-#     "$PAPI_PROFILER" get_events
+    $(_parse_papi_native_avail "events")
 }
 
 # Profile the provided binary with PAPI counters.
-# Detects and switches to PM_Counters if profiling on a Cray system.
 papi_profile() {
+    # Get events and units.
+    local events=$(_parse_papi_native_avail "events")
+    local units=$(_parse_papi_native_avail "units")
+
+    # Throw warning if there are no supported events.
+    if [ -z "$events" ]; then
+        print_warning "No supported PAPI counters found."
+        return
+    fi
+
     # Make sure the papi_profiler is updated and compiled.
-    _compile_papi_profiler
+    # _compile_papi_profiler
 
     # Profile binary with supported events.
-    "$PAPI_PROFILER" profile $@
+    # "$PAPI_PROFILER" "$events" "$units" $@
 }
