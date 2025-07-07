@@ -68,6 +68,7 @@ show_profilers() {
     echo "perf_avail: $(bool_to_text $perf_avail)"  # TODO: No integer?
     echo "perf_events:"
     echo "$perf_events" | awk '{print "\t" $0}'
+    echo ""
 
     # Fetch and print PAPI variables.
     echo -e "========== PAPI ==========="
@@ -76,6 +77,7 @@ show_profilers() {
     echo "papi_avail: $(bool_to_text "$papi_avail")"  # TODO: No integer?
     echo "papi_events:"
     echo "$papi_events" | awk '{print "\t" $0}'
+    echo ""
 }
 
 # Main entry point for wrapper, containing argument parser.
