@@ -87,9 +87,16 @@ _parse_papi_native_avail() {
         if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::)[^[:space:]]+ ]]; then
             # Extract the event name.
             event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
-            in_event=1
-            description=""
-            units=""
+
+            # Verify that the event is supported. If so, parse event.
+            supported=$(papi_native_avail -c "$event_name")
+            if echo "$supported" | grep -q "$event_name is not supported"; then
+                verbose_echo print_warning "$event_name is not supported"
+            else
+                in_event=1
+                description=""
+                units=""
+            fi
             continue
         fi
 
@@ -135,9 +142,14 @@ papi_profile() {
         return
     fi
 
+    verbose_echo print_info "Events:\n$events"
+    verbose_echo print_info "Units:\n$units"
+
     # Make sure the papi_profiler is updated and compiled.
+    verbose_echo print_info "Compiling papi_profiler.c.."
     _compile_papi_profiler
 
     # Profile binary with supported events.
+    verbose_echo print_into "Executing profiler"
     "$PAPI_PROFILER" "$events" "$units" $@
 }

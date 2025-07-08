@@ -169,7 +169,7 @@ int create_papi_eventset(int* eventset, int num_events, struct event** events) {
     return num_valid_events;
 }
 
-/* Usage:   ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ..] */
+/* Usage:   ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
 int main(int argc, char** argv) {
     /* Parse user input. 
      * NOTE: This mallocs events and program! 
