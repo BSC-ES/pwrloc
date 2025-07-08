@@ -127,7 +127,12 @@ _parse_papi_native_avail() {
 
 # Return the set of energy events supported by this system.
 papi_events() {
-    _parse_papi_native_avail "events"
+    local events=$(_parse_papi_native_avail "events")
+    if [ -z "$events" ]; then
+        echo "NO EVENTS AVAILABLE"
+    else
+        echo "$events"
+    fi
 }
 
 # Profile the provided binary with PAPI counters.

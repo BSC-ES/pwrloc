@@ -24,7 +24,12 @@ perf_available() {
 
 # Returns the sample frequency.
 perf_events() {
-    echo "$(perf list | grep energy | awk '{print $1}')"
+    local events="$(perf list | grep energy | awk '{print $1}')"
+    if [ -z "$events" ]; then
+        echo "NO EVENTS AVAILABLE"
+    else
+        echo "$events"
+    fi
 }
 
 # Get the consumed energy for this rank (which can be total execution).
