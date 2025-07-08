@@ -209,8 +209,9 @@ int main(int argc, char** argv) {
         fprintf(stderr,"Error starting PAPI: %s\n", PAPI_strerror(retval));
     }
 
-    /* Execute application. */
-    // TODO: Fix security problems with system call!
+    /* Execute application. 
+     * Using system() works with RAPL as it profiles system wide. 
+     */
     retval = system(program);
     if (retval != EXIT_SUCCESS) {
         fprintf(stderr, "The user's program failed.\n");
@@ -230,9 +231,10 @@ int main(int argc, char** argv) {
     }
 
     /* Print measured results. */
+    double unit_d = 0.0;
     for (int i = 0; i < num_events; i++) {
-        /* TODO:  * events[i].scalar */
-        printf("%s: %lld\n", events[i].name, values[i]);
+        unit_d = strtold(events[i].unit, NULL);
+        printf("%s: %.3lf\n", events[i].name, (double)(values[i] * unit_d));
     }
 
     /* Clean up. */
