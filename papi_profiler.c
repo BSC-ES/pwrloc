@@ -135,20 +135,41 @@ int create_papi_eventset(int* eventset, int num_events, struct event** events) {
 
     /* Add counters to even set and ignore the unsupported ones. */
     int num_valid_events = 0;
+    int event_code;
     for (int i = 0; i < num_events; i++) {
-        retval = PAPI_add_named_event(*eventset, (*events)[i].name);
+        retval = PAPI_event_name_to_code((*events)[i].name, &event_code);
         if (retval != PAPI_OK) {
             fprintf(
                 stderr, 
-                "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
+                "\033[1;33mWARNING: Name to Code error: %s\t(%s)\n\033[0m", 
                 (*events)[i].name, PAPI_strerror(retval)
             );
-
-            /* Mark event entry as unsupported. */
-            (*events)[i].name = NULL;
         } else {
-            num_valid_events++;
+            retval = PAPI_add_event(eventset, eventcode);
+            if (retval != PAPI_OK) {
+                fprintf(
+                    stderr, 
+                    "\033[1;33mWARNING: Invalid PAPI code: %d\t(%s)\n\033[0m", 
+                    eventcode, PAPI_strerror(retval)
+                );
+            } else {
+                num_valid_events++;
+            }
         }
+
+        // retval = PAPI_add_named_event(*eventset, (*events)[i].name);
+        // if (retval != PAPI_OK) {
+        //     fprintf(
+        //         stderr, 
+        //         "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
+        //         (*events)[i].name, PAPI_strerror(retval)
+        //     );
+
+        //     /* Mark event entry as unsupported. */
+        //     (*events)[i].name = NULL;
+        // } else {
+        //     num_valid_events++;
+        // }
     }
 
     /* Remove unsupported events from the events list. */
@@ -200,13 +221,13 @@ int main(int argc, char** argv) {
     /* Reset PAPI counters. */
     retval = PAPI_reset(eventset);
     if (retval != PAPI_OK) {
-        fprintf(stderr,"Error resetting PAPI: %s\n", PAPI_strerror(retval));
+        fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
     }
 
     /* Start tracking PAPI counters. */
     retval = PAPI_start(eventset);
     if (retval != PAPI_OK) {
-        fprintf(stderr,"Error starting PAPI: %s\n", PAPI_strerror(retval));
+        fprintf(stderr, "Error starting PAPI: %s\n", PAPI_strerror(retval));
     }
 
     /* Execute application. 
@@ -221,7 +242,7 @@ int main(int argc, char** argv) {
     long long values[num_events];
     retval = PAPI_stop(eventset, values);
     if (retval != PAPI_OK) {
-        fprintf(stderr,"Error stopping:  %s\n", PAPI_strerror(retval));
+        fprintf(stderr, "Error stopping:  %s\n", PAPI_strerror(retval));
         if (events != NULL) free(events);
         if (program != NULL) free(program);
         PAPI_cleanup_eventset(eventset);

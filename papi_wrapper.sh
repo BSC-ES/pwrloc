@@ -89,14 +89,14 @@ _parse_papi_native_avail() {
             event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
             # Verify that the event is supported. If so, parse event.
-            supported=$(papi_native_avail -c "$event_name")
-            if echo "$supported" | grep -q "$event_name is not supported"; then
-                verbose_echo print_warning "$event_name is not supported"
-            else
+            # supported=$(papi_native_avail -c "$event_name")
+            # if echo "$supported" | grep -q "$event_name is not supported"; then
+            #     verbose_echo print_warning "$event_name is not supported"
+            # else
                 in_event=1
                 description=""
                 units=""
-            fi
+            # fi
             continue
         fi
 
