@@ -84,7 +84,7 @@ _parse_papi_native_avail() {
     # Loop over all lines of the output.
     echo "$events" | while IFS= read -r line; do
         # Detect the start of a rapl event block.
-        if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm_PM_ENERGY::)[^[:space:]]+ ]]; then
+        if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm:::PM_ENERGY:)[^[:space:]]+ ]]; then
             # Extract the event name.
             event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
