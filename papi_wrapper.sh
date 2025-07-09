@@ -64,7 +64,7 @@ _parse_papi_unit_to_joules() {
     esac
 }
 
-# Parse papi_native_avail for RAPL related events and their unit scalars.
+# Parse the output of papi_native_avail for energy related events and units.
 _parse_papi_native_avail() {
     # Support for 3 different output modes:
     #   - "events": Only print the event names.
@@ -72,31 +72,31 @@ _parse_papi_native_avail() {
     #   - "both":   Print both names and units separated by " : ".
     local mode="$1"
 
+    # Get events from user.
+    local events="$2"
+
     # Locals for parsing each event.
     local in_event=0
     local event_name=""
     local description=""
     local units=""
 
-    # Fetch list of counters and units.
-    local events=$(papi_native_avail -i rapl)
-
-    # # Loop over all lines of the output.
+    # Loop over all lines of the output.
     echo "$events" | while IFS= read -r line; do
         # Detect the start of a rapl event block.
-        if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::)[^[:space:]]+ ]]; then
+        if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm_PM_ENERGY::)[^[:space:]]+ ]]; then
             # Extract the event name.
             event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
             # Verify that the event is supported. If so, parse event.
-            # supported=$(papi_native_avail -c "$event_name")
-            # if echo "$supported" | grep -q "$event_name is not supported"; then
-            #     verbose_echo print_warning "$event_name is not supported"
-            # else
+            supported=$(papi_native_avail -c "$event_name")
+            if echo "$supported" | grep -q "$event_name is not supported"; then
+                verbose_echo print_warning "$event_name is not supported"
+            else
                 in_event=1
                 description=""
                 units=""
-            # fi
+            fi
             continue
         fi
 
@@ -125,9 +125,32 @@ _parse_papi_native_avail() {
     done
 }
 
+# Parse papi_native_avail for RAPL related events and their unit scalars.
+_get_papi_native_avail() {
+    # Make sure PAPI is available.
+    if ! papi_available 2>&1 > /dev/null; then
+        return
+    fi
+
+    # Support for 3 different output modes:
+    #   - "events": Only print the event names.
+    #   - "units":  Only print the units.
+    #   - "both":   Print both names and units separated by " : ".
+    local mode="$1"
+
+    # Fetch list of counters and units.
+    local components=("rapl" "cray_pm")
+    local events=""
+
+    for component in "${components[@]}"; do
+        events=$(papi_native_avail -i "$component")
+        _parse_papi_native_avail "$mode" "$events"
+    done
+}
+
 # Return the set of energy events supported by this system.
 papi_events() {
-    local events=$(_parse_papi_native_avail "events")
+    local events=$(_get_papi_native_avail "events")
     if [ -z "$events" ]; then
         echo "NO EVENTS AVAILABLE"
     else
@@ -138,8 +161,8 @@ papi_events() {
 # Profile the provided binary with PAPI counters.
 papi_profile() {
     # Get events and units.
-    local events=$(_parse_papi_native_avail "events")
-    local units=$(_parse_papi_native_avail "units")
+    local events=$(_get_papi_native_avail "events")
+    local units=$(_get_papi_native_avail "units")
 
     # Throw warning if there are no supported events.
     if [ -z "$events" ]; then

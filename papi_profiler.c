@@ -135,41 +135,20 @@ int create_papi_eventset(int* eventset, int num_events, struct event** events) {
 
     /* Add counters to even set and ignore the unsupported ones. */
     int num_valid_events = 0;
-    int event_code;
     for (int i = 0; i < num_events; i++) {
-        retval = PAPI_event_name_to_code((*events)[i].name, &event_code);
+        retval = PAPI_add_named_event(*eventset, (*events)[i].name);
         if (retval != PAPI_OK) {
             fprintf(
-                stderr, 
-                "\033[1;33mWARNING: Name to Code error: %s\t(%s)\n\033[0m", 
+                stderr,
+                "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
                 (*events)[i].name, PAPI_strerror(retval)
             );
+
+            /* Mark event entry as unsupported. */
+            (*events)[i].name = NULL;
         } else {
-            retval = PAPI_add_event(eventset, eventcode);
-            if (retval != PAPI_OK) {
-                fprintf(
-                    stderr, 
-                    "\033[1;33mWARNING: Invalid PAPI code: %d\t(%s)\n\033[0m", 
-                    eventcode, PAPI_strerror(retval)
-                );
-            } else {
-                num_valid_events++;
-            }
+            num_valid_events++;
         }
-
-        // retval = PAPI_add_named_event(*eventset, (*events)[i].name);
-        // if (retval != PAPI_OK) {
-        //     fprintf(
-        //         stderr, 
-        //         "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
-        //         (*events)[i].name, PAPI_strerror(retval)
-        //     );
-
-        //     /* Mark event entry as unsupported. */
-        //     (*events)[i].name = NULL;
-        // } else {
-        //     num_valid_events++;
-        // }
     }
 
     /* Remove unsupported events from the events list. */
