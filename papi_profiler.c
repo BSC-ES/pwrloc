@@ -90,7 +90,7 @@ int parse_input(int argc, char** argv, struct event** events, char** program) {
     }
 
     /* Allocate events. */
-    int num_events = count_words(argv[1], "\n");
+    int num_events = count_words(argv[1], "\n\\n ");
     *events = malloc(sizeof(struct event) * num_events);
     if (!*events) {
         perror("malloc failed");
@@ -104,8 +104,8 @@ int parse_input(int argc, char** argv, struct event** events, char** program) {
     char* unit_save;
 
     /* Use thread-safe strtok_r to allow for parsing two lists concurrently. */
-    char* event_token = strtok_r(event_str, "\n", &event_save);
-    char* unit_token = strtok_r(unit_str, "\n", &unit_save);
+    char* event_token = strtok_r(event_str, "\n\\n ", &event_save);
+    char* unit_token = strtok_r(unit_str, "\n\\n ", &unit_save);
     num_events = 0;
     
     while (event_token != NULL && unit_token != NULL) {
@@ -114,8 +114,8 @@ int parse_input(int argc, char** argv, struct event** events, char** program) {
         (*events)[num_events++].unit = unit_token;
 
         /* Move to the next iteration. */
-        event_token = strtok_r(NULL, "\n", &event_save);
-        unit_token = strtok_r(NULL, "\n", &unit_save);
+        event_token = strtok_r(NULL, "\n\\n ", &event_save);
+        unit_token = strtok_r(NULL, "\n\\n ", &unit_save);
     }
 
     /* Concatenate all program arguments into one string. */
@@ -214,7 +214,10 @@ int main(int argc, char** argv) {
      */
     retval = system(program);
     if (retval != EXIT_SUCCESS) {
-        fprintf(stderr, "The user's program failed.\n");
+        fprintf(
+            stderr, 
+            "\033[1;33mWARNING: The user's program failed.\n\033[0m"
+        );
     }
 
     /* Stop tracking counters. */
