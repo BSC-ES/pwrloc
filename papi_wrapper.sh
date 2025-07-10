@@ -83,23 +83,19 @@ _parse_papi_native_avail() {
 
     # Loop over all lines of the output.
     echo "$events" | while IFS= read -r line; do
-        # TODO: Filter out the UNIT blocks.
-        # Detect the start of a rapl event block.
+        # Detect the start of a rapl or cray_pm event block.
         if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm:::PM_ENERGY:)[^[:space:]]+ ]]; then
-            # Extract the event name.
-            event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
+            # Exclude any UNITS events.
+            if [[ ! "$line" =~ ^\|[[:space:]]*(cray_rapl:::UNITS|cray_pm:::UNITS) ]]; then
+                # Extract the event name.
+                event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
-            # TODO: The support checking does not work well.
-            # Verify that the event is supported. If so, parse event.
-            # supported=$(papi_native_avail -c "$event_name")
-            # if echo "$supported" | grep -q "$event_name is not supported"; then
-            #     verbose_echo print_warning "$event_name is not supported"
-            # else
+                # Reset values for parsing this event.
                 in_event=1
                 description=""
                 units=""
-            # fi
-            continue
+                continue
+            fi
         fi
 
         # Parse consecutive lines after the event name line.
@@ -111,6 +107,9 @@ _parse_papi_native_avail() {
 
             # Detect the end of the event block.
             if [[ "$line" =~ ^[-=]+$ ]]; then
+                # Default units to 1 if none was detected.
+                [ -z "$units" ] && units=1
+
                 # Print found values.
                 if [ "$mode" = "events" ]; then
                     echo "$event_name"
