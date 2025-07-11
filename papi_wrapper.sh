@@ -87,6 +87,7 @@ _parse_papi_native_avail() {
         if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm:::PM_ENERGY:)[^[:space:]]+ ]]; then
             # Exclude any UNITS events.
             if [[ ! "$line" =~ ^\|[[:space:]]*(cray_rapl:::UNITS|cray_pm:::UNITS) ]]; then
+                # TODO: For MN5, extract the modifiers (e.g. :cpu=0) as well and create permuted events.
                 # Extract the event name.
                 event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
@@ -128,8 +129,9 @@ _parse_papi_native_avail() {
 
 # Parse papi_native_avail for RAPL related events and their unit scalars.
 _get_papi_native_avail() {
-    # Make sure PAPI is available.
-    if ! papi_available 2>&1 > /dev/null; then
+    # Make sure papi_native_avail is available.
+    if ! function_exists papi_available; then
+        print_error "Cannot load PAPI components, is PAPI loaded?"
         return
     fi
 
@@ -161,6 +163,12 @@ papi_events() {
 
 # Profile the provided binary with PAPI counters.
 papi_profile() {
+    # Make sure PAPI is available.
+    if ! papi_available 2>&1 > /dev/null; then
+        print_error "PAPI is not available."
+        return
+    fi
+
     # Get events and units.
     local events=$(_get_papi_native_avail "events")
     local units=$(_get_papi_native_avail "units")
