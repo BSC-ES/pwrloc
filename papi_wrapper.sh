@@ -115,7 +115,6 @@ _parse_papi_native_avail() {
         if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm:::PM_ENERGY:)[^[:space:]]+ ]]; then
             # Exclude any UNITS events.
             if [[ ! "$line" =~ ^\|[[:space:]]*(cray_rapl:::UNITS|cray_pm:::UNITS) ]]; then
-                # TODO: For MN5, extract the modifiers (e.g. :cpu=0) as well and create permuted events.
                 # Extract the event name.
                 event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 

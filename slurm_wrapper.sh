@@ -82,7 +82,7 @@ _slurm_get_energy_consumed() {
     local verbose_values=$(
         sacct -j "$jobid" --format=JobId%25,JobName%25,ConsumedEnergy,Elapsed
     )
-    verbose_echo print_info "Energy measurements:\n$verbose_values\n" >&2
+    verbose_echo print_info "Energy measurements:\n$verbose_values\n"
 
     # Loop through the collected values and save the maximum.
     local max_joules=0
@@ -95,9 +95,10 @@ _slurm_get_energy_consumed() {
         fi
     done <<< "$values"
 
-    # Convert maximum to kilojoules.
+    # Convert maximum to kilojoules and print if verbose.
     local max_human=$(convert_from_joules "$max_joules")
-    echo "${max_human}"
+    verbose_echo print_info "Human readable:  ${max_human}"
+    echo "$max_joules J"
 }
 
 # Profile given application with SLURM and return the total consumed energy.
@@ -111,10 +112,15 @@ slurm_profile() {
         exit 1
     fi
 
+    # Verify that the job id is fully numerical.
+    if ! is_numerical "$jobid"; then
+        print_error "Passed argument '$jobid' is not a valid job id."
+        exit 1
+    fi
+
     # Log what job is profiled.
     verbose_echo print_info "Profiling jobid '$jobid'.."
 
     # Get energy consumed value.
-    local energy=$(_slurm_get_energy_consumed $jobid)
-    echo -e "Energy consumption:\t$energy"
+    echo -e "$(_slurm_get_energy_consumed $jobid)"
 }
