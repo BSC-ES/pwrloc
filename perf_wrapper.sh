@@ -99,7 +99,7 @@ _gather_results() {
     done
 
     # Remove the tmp directory and print the totals.
-    # rm -rd "$tmp_dir"
+    rm -rd "$tmp_dir"
     echo "${energy_total[@]}"
 }
 
@@ -132,9 +132,8 @@ perf_profile() {
         done
 
         # Print events with collected values side by side.
-        echo "Energy consumption:"
         for i in "${!event_array[@]}"; do
-            printf "\t%-${max_len}s\t%s\n" "${event_array[$i]}:" \
+            printf "%-${max_len}s %s J\n" "${event_array[$i]}" \
                 "${energy_total[$i]}"
         done
     fi
