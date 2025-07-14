@@ -12,25 +12,18 @@
 
 int ARGV_PROGRAM_IDX = 3;
 
-struct event {
-    char* name;
-    char* unit;
-};
+/* Extract the component of an event name. */
+char* parse_event_component(char* event) {
+    char* event_str = strdup(event);
+    char* event_save;
+    char* event_token = strtok_r(event_str, ":", &event_save);
 
-
-/* Count the number of words in a string. */
-int count_words(char* input, const char* delims) {
-    char* input_dup = strdup(input);
-    char* save_ptr;
-    int count = 0;
-
-    char* token = strtok_r(input_dup, delims, &save_ptr);
-    while (token != NULL) {
-        count++;
-        token = strtok_r(NULL, delims, &save_ptr);
+    /* Check for no occurence of :, and return full string if so. */
+    if (event_token == NULL) {
+        return event;
     }
 
-    return count;
+    return event_token;
 }
 
 /* Concatenate the arguments defining the program and args to be profiled. */
@@ -79,7 +72,9 @@ void concat_program_args(int argc, char** argv, char** program) {
 /* Parse user input into list of events and the program to profile. 
  * Returns the number of events. 
  */
-int parse_input(int argc, char** argv, struct event** events, char** program) {
+void parse_input(
+    int argc, char** argv, struct component** components, char** program
+) {
     /* Return if there are no events and units to profile. */
     if (argc < 3) {
         fprintf(stderr, "No events and units specified.\n");
@@ -89,84 +84,99 @@ int parse_input(int argc, char** argv, struct event** events, char** program) {
         exit(EXIT_FAILURE);
     }
 
-    /* Allocate events. */
-    int num_events = count_words(argv[1], "\n\\n ");
-    *events = malloc(sizeof(struct event) * num_events);
-    if (!*events) {
-        perror("malloc failed");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Parse events and units per combination into one array. */
+    /* Parse user-provided events into a linked list of event components. */
     char* event_str = argv[1];
     char* event_save;
+    char* event_component;
     char* unit_str = argv[2];
     char* unit_save;
 
     /* Use thread-safe strtok_r to allow for parsing two lists concurrently. */
     char* event_token = strtok_r(event_str, "\n\\n ", &event_save);
     char* unit_token = strtok_r(unit_str, "\n\\n ", &unit_save);
-    num_events = 0;
-    
-    while (event_token != NULL && unit_token != NULL) {
-        /* Store values in array of structs. */
-        (*events)[num_events].name = event_token;
-        (*events)[num_events++].unit = unit_token;
+    struct component* comp;
 
-        /* Move to the next iteration. */
+    /* Parse all events and units, and add them to the right event component. */
+    while (event_token != NULL && unit_token != NULL) {
+        /* Get the component name from the event and get the component node. */
+        event_component = parse_event_component(event_token);
+        comp = get_component(*components, event_token);
+
+        /* Add the event to the component node. */
+        add_event_to_component(comp, event_token, unit_token);
+
+        /* Move to the next event. */
         event_token = strtok_r(NULL, "\n\\n ", &event_save);
         unit_token = strtok_r(NULL, "\n\\n ", &unit_save);
     }
 
     /* Concatenate all program arguments into one string. */
     concat_program_args(argc, argv, program);
-    
-    return num_events;
 }
 
-/* Create a PAPI event set and return the number of valid events. */
-int create_papi_eventset(int* eventset, int num_events, struct event** events) {
-    /* Create PAPI event set. */
-    int retval = PAPI_create_eventset(eventset);
-    if (retval != PAPI_OK) {
-        fprintf(stderr, "Error creating eventset: %s\n", PAPI_strerror(retval));
-        exit(EXIT_FAILURE);
-    }
+/* Create a PAPI event set and return the number of valid events. 
+ * Returns 0 on success, 1 otherwise. 
+ */
+int create_papi_eventset(struct component* component) {
+    int retval;
+    struct event* event;
+    struct event* next;
+    int num_events;
 
-    /* Add counters to even set and ignore the unsupported ones. */
-    int num_valid_events = 0;
-    for (int i = 0; i < num_events; i++) {
-        retval = PAPI_add_named_event(*eventset, (*events)[i].name);
+    /* Creata a PAPI event set for each component. */
+    while (component) {
+        /* Create the event set. */
+        retval = PAPI_create_eventset(&(component->eventset));
         if (retval != PAPI_OK) {
-            fprintf(
-                stderr,
-                "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
-                (*events)[i].name, PAPI_strerror(retval)
-            );
-
-            /* Mark event entry as unsupported. */
-            (*events)[i].name = NULL;
-        } else {
-            num_valid_events++;
+            fprintf(stderr, "Error creating eventset: %s\n", PAPI_strerror(retval));
+            return 1;
         }
+
+        /* Add the events. */
+        event = component->first_event;
+        num_events = 0;
+        while (event) {
+            retval = PAPI_add_named_event(component->eventset, event->name);
+            if (retval != PAPI_OK) {
+                fprintf(
+                    stderr,
+                    "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
+                    event->name, PAPI_strerror(retval)
+                );
+
+                /* Remove current event from list and move to the next. */
+                next = event->next;                
+                event->prev->next = event->next;
+                
+                if (next) { 
+                    event->next->prev = event->prev;
+                }
+
+                free(event);
+                event = next;
+            } else {
+                /* Increment number of succesfully parsed events. */
+                num_events++;
+
+                /* Move to the next event on success. */
+                event = event->next;
+            }
+        }
+
+        /* Allocate memory for storing the values after PAPI_STOP. */
+        component->values = malloc(sizeof(long long) * num_events);
+
+        /* Move to the next component. */
+        component = component->next;
     }
 
-    /* Remove unsupported events from the events list. */
-    struct event* valid_events = 
-        malloc(sizeof(struct event) * num_valid_events);
-    int valid_counter = 0;
-    
-    for (int i = 0; i < num_events; i++) {
-        if ((*events)[i].name != NULL) {
-            valid_events[valid_counter].name = (*events)[i].name;
-            valid_events[valid_counter++].unit = (*events)[i].unit;
-        }
-    }
+    return 0;
+}
 
-    /* Swap events for updated array and return the new array length. */
-    free(*events);
-    *events = valid_events;
-    return num_valid_events;
+/* Clean up everything that is allocated. */
+void clean_up(struct component* components, char* program) {
+    if (components != NULL) clean_up_component(components);
+    if (program != NULL) free(program);
 }
 
 /* Usage:   ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
@@ -174,39 +184,53 @@ int main(int argc, char** argv) {
     /* Parse user input. 
      * NOTE: This mallocs events and program! 
      */
-    struct event* events = NULL;
+    struct component* components = NULL;
     char* program = NULL;
-    int num_events = parse_input(argc, argv, &events, &program);
+    parse_input(argc, argv, &components, &program);
 
     /* Initialize PAPI library, check for errors. */
     int retval = PAPI_library_init(PAPI_VER_CURRENT);
     if (retval != PAPI_VER_CURRENT) {
         fprintf(stderr, "Error initializing PAPI: %s\n", PAPI_strerror(retval));
-        if (events != NULL) free(events);
-        if (program != NULL) free(program);
+        clean_up(components, program);
         return EXIT_FAILURE;
     }
 
-    /* Create PAPI event set and update events list with valid ones. */
-    int eventset = PAPI_NULL;
-    num_events = create_papi_eventset(&eventset, num_events, &events);
-    if (num_events == 0) {
-        fprintf(stderr, "No supported PAPI events to profile.\n");
-        if (events != NULL) free(events);
-        if (program != NULL) free(program);
+    /* Create PAPI event set and remove invalid events from the components. */
+    if (create_papi_eventset(components) != 0) {
+        clean_up(components, program);
         return EXIT_FAILURE;
     }
 
     /* Reset PAPI counters. */
-    retval = PAPI_reset(eventset);
-    if (retval != PAPI_OK) {
-        fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
+    bool shutdown = false;
+    struct component* cur_comp = components;
+    while (cur_comp) {
+        retval = PAPI_reset(cur_comp->eventset);
+        if (retval != PAPI_OK) {
+            fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
+            shutdown = true;
+        }
+        cur_comp = cur_comp->next;
+    }
+    if (shutdown) {
+        clean_up(components, program);
+        return EXIT_FAILURE;
     }
 
-    /* Start tracking PAPI counters. */
-    retval = PAPI_start(eventset);
-    if (retval != PAPI_OK) {
-        fprintf(stderr, "Error starting PAPI: %s\n", PAPI_strerror(retval));
+    /* Start PAPI counters. */
+    cur_comp = components;
+    while (cur_comp) {
+        retval = PAPI_start(cur_comp->eventset);
+        if (retval != PAPI_OK) {
+            fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
+            shutdown = true;
+        }
+        cur_comp = cur_comp->next;
+    }
+    if (shutdown) {
+        clean_up(components, program);
+        return EXIT_FAILURE;
     }
 
     /* Execute application. 
@@ -221,30 +245,42 @@ int main(int argc, char** argv) {
     }
 
     /* Stop tracking counters. */
-    long long values[num_events];
-    retval = PAPI_stop(eventset, values);
-    if (retval != PAPI_OK) {
-        fprintf(stderr, "Error stopping:  %s\n", PAPI_strerror(retval));
-        if (events != NULL) free(events);
-        if (program != NULL) free(program);
-        PAPI_cleanup_eventset(eventset);
-        PAPI_destroy_eventset(&eventset);
+    cur_comp = components;
+    while (cur_comp) {
+        retval = PAPI_stop(cur_comp->eventset, cur_comp->values);
+        if (retval != PAPI_OK) {
+            fprintf(stderr, "Error stopping PAPI: %s\n", PAPI_strerror(retval));
+            shutdown = true;
+        }
+        cur_comp = cur_comp->next;
+    }
+    if (shutdown) {
+        clean_up(components, program);
         PAPI_shutdown();
         return EXIT_FAILURE;
     }
 
     /* Print measured results. */
-    double unit_d = 0.0;
-    for (int i = 0; i < num_events; i++) {
-        unit_d = strtold(events[i].unit, NULL);
-        printf("%s: %.3lf J\n", events[i].name, (double)(values[i] * unit_d));
+    int event_idx;
+    double unit_d;
+    struct event* cur_event;
+    cur_comp = components;
+
+    while (cur_comp) {
+        event_idx = 0;
+        cur_event = cur_comp->first_event;
+        
+        while (cur_event) {
+            unit_d = strtold(cur_event->unit, NULL);
+            printf("%s: %.3lf J\n", cur_event->name, (double)(values[event_idx++] * unit_d));
+            cur_event = cur_event->next;
+        }
+
+        cur_comp = cur_comp->next;
     }
 
     /* Clean up. */
-    if (events != NULL) free(events);
-    if (program != NULL) free(program);
-    PAPI_cleanup_eventset(eventset);
-    PAPI_destroy_eventset(&eventset);
+    clean_up(components, program);
     PAPI_shutdown();
 
     return EXIT_SUCCESS;
