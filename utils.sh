@@ -47,22 +47,22 @@ COLOR_ERROR='\033[1;31m'    # Red
 
 # Info message.
 print_info() {
-    echo -e "${COLOR_INFO}[INFO] $1${COLOR_RESET}"
+    echo -e "${COLOR_INFO}[INFO] $1${COLOR_RESET}" >&2
 }
 
 # Success message.
 print_success() {
-    echo -e "${COLOR_SUCCESS}[SUCCESS] $1${COLOR_RESET}"
+    echo -e "${COLOR_SUCCESS}[SUCCESS] $1${COLOR_RESET}" >&2
 }
 
 # Warning message.
 print_warning() {
-    echo -e "${COLOR_WARNING}[WARNING] $1${COLOR_RESET}"
+    echo -e "${COLOR_WARNING}[WARNING] $1${COLOR_RESET}" >&2
 }
 
 # Error message.
 print_error() {
-    echo -e "${COLOR_ERROR}[ERROR] $1${COLOR_RESET}"
+    echo -e "${COLOR_ERROR}[ERROR] $1${COLOR_RESET}" >&2
 }
 
 # Print the given sequence repeated in full terminal width or 80 characters.
