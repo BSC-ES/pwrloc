@@ -3,18 +3,13 @@
  * -----------------------------------------------------------------------------
  */
 
-#include <papi.h>
-#include <string.h>
+#include "papi_component.h"
+#include "papi_event.h"
 
-/* Definition of a struct of event arrays. */
-struct component {
-    char* name;
-    int eventset;
-    long long* values;
-    struct event* first_event;
-    struct event* last_event;
-    struct component* next;
-};
+#include <papi.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 /* Allocate and initialize a new event linked list node. */
 struct component* allocate_component(char* name) {
@@ -62,10 +57,10 @@ struct component* get_component(struct component* comp, char* name) {
 void add_event_to_component(struct component* comp, char* name, char* unit) {
     /* Set new event as first node, or prepand to end of existing list. */
     if (comp->first_event == NULL) {
-        comp->first_event = allocate_event(event_name, unit);
+        comp->first_event = allocate_event(name, unit);
         comp->last_event = comp->first_event;
     } else {
-        struct event* event = allocate_event(event_name, unit);
+        struct event* event = allocate_event(name, unit);
         comp->last_event->next = event;
         event->prev = comp->last_event;
         comp->last_event = event;

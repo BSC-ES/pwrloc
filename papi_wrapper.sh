@@ -31,7 +31,13 @@ _compile_papi_profiler() {
     fi
 
     # Compile the code.
-    cc "$BASEDIR/papi_profiler.c" -o "$PAPI_PROFILER" -lpapi
+    cc "$BASEDIR/papi_profiler.c" "$BASEDIR/papi_component.c" "$BASEDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi
+    
+    if [ ! $? -eq 0 ]; then
+        print_error "Error while compiling $(basename $PAPI_PROFILER), exiting.."
+        exit 1
+    fi
+
     chmod +x "$PAPI_PROFILER"
 }
 
@@ -157,7 +163,7 @@ _parse_papi_native_avail() {
 # Parse papi_native_avail for RAPL related events and their unit scalars.
 _get_papi_native_avail() {
     # Make sure papi_native_avail is available.
-    if ! function_exists papi_available; then
+    if ! papi_available > /dev/null 2>&1; then
         print_error "Cannot load PAPI components, is PAPI loaded?"
         return
     fi

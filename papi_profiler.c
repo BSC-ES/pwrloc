@@ -4,6 +4,10 @@
  * -----------------------------------------------------------------------------
  */
 
+
+#include "papi_component.h"
+#include "papi_event.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <papi.h>
@@ -115,7 +119,7 @@ void parse_input(
 }
 
 /* Create a PAPI event set and return the number of valid events. 
- * Returns 0 on success, 1 otherwise. 
+ * Returns EXIT_SUCCESS on success, EXIT_FAILURE otherwise. 
  */
 int create_papi_eventset(struct component* component) {
     int retval;
@@ -129,7 +133,7 @@ int create_papi_eventset(struct component* component) {
         retval = PAPI_create_eventset(&(component->eventset));
         if (retval != PAPI_OK) {
             fprintf(stderr, "Error creating eventset: %s\n", PAPI_strerror(retval));
-            return 1;
+            return EXIT_FAILURE;
         }
 
         /* Add the events. */
@@ -170,7 +174,7 @@ int create_papi_eventset(struct component* component) {
         component = component->next;
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 /* Clean up everything that is allocated. */
@@ -197,7 +201,7 @@ int main(int argc, char** argv) {
     }
 
     /* Create PAPI event set and remove invalid events from the components. */
-    if (create_papi_eventset(components) != 0) {
+    if (create_papi_eventset(components) == EXIT_FAILURE) {
         clean_up(components, program);
         return EXIT_FAILURE;
     }
@@ -272,7 +276,7 @@ int main(int argc, char** argv) {
         
         while (cur_event) {
             unit_d = strtold(cur_event->unit, NULL);
-            printf("%s: %.3lf J\n", cur_event->name, (double)(values[event_idx++] * unit_d));
+            printf("%s: %.3lf J\n", cur_event->name, (double)(cur_comp->values[event_idx++] * unit_d));
             cur_event = cur_event->next;
         }
 

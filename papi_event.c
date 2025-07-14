@@ -3,13 +3,10 @@
  * -----------------------------------------------------------------------------
  */
 
-/* Definition of an event node. */
-struct event {
-    char* name;
-    char* unit;
-    struct event* prev;
-    struct event* next;
-}
+#include "papi_event.h"
+
+#include <stdlib.h>
+#include <stdio.h>
 
 /* Allocate and initialize a new event linked list node. */
 struct event* allocate_event(char* name, char* unit) {
