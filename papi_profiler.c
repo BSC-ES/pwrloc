@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
     double unit_d = 0.0;
     for (int i = 0; i < num_events; i++) {
         unit_d = strtold(events[i].unit, NULL);
-        printf("%s: %.3lf\n", events[i].name, (double)(values[i] * unit_d));
+        printf("%s: %.3lf J\n", events[i].name, (double)(values[i] * unit_d));
     }
 
     /* Clean up. */

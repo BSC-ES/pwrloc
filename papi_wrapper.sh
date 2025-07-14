@@ -64,6 +64,22 @@ _parse_papi_unit_to_joules() {
     esac
 }
 
+# Print papi event information depending on the mode given.
+_print_papi_event() {
+    local mode=$1
+    local event=$2
+    local unit=$3
+
+    # Print found values.
+    if [ "$mode" = "events" ]; then
+        echo "$event"
+    elif [ "$mode" = "units" ]; then
+        echo "$unit"
+    else
+        echo "$event : $unit"
+    fi
+}
+
 # Parse the output of papi_native_avail for energy related events and units.
 _parse_papi_native_avail() {
     # Support for 3 different output modes:
@@ -78,8 +94,9 @@ _parse_papi_native_avail() {
     # Locals for parsing each event.
     local in_event=0
     local event_name=""
-    local description=""
-    local units=""
+    local unit=""
+    local modifiers=()
+    local mod=""
 
     # Loop over all lines of the output.
     echo "$events" | while IFS= read -r line; do
@@ -93,31 +110,41 @@ _parse_papi_native_avail() {
 
                 # Reset values for parsing this event.
                 in_event=1
-                description=""
-                units=""
+                modifiers=()
+                unit=""
                 continue
             fi
         fi
 
         # Parse consecutive lines after the event name line.
         if [[ $in_event -eq 1 ]]; then
+            # Extract modifiers, like :cpu=*.
+            if [[ "$line" =~ ^\|[[:space:]]*(:[a-zA-Z0-9_]+=[^[:space:]]+) ]]; then
+                mod="${BASH_REMATCH[1]}"
+                case "$mod" in
+                    # Skip known modifiers that do not make sense to alter.
+                    :period=*|:freq=*|:excl=*|:pinned=*) ;;
+                    *) modifiers+=("$mod") ;;
+                esac
+            fi
+
             # Extract units in MN5 and LUMI format.
             if [[ "$line" =~ Units?[[:space:]]*(:|is)[[:space:]]*([0-9]+|\-?[0-9]+|2\^[\-0-9]+|[a-zA-Z]+) ]]; then
-                units=$(_parse_papi_unit_to_joules "${BASH_REMATCH[2]}")
+                unit=$(_parse_papi_unit_to_joules "${BASH_REMATCH[2]}")
             fi
 
             # Detect the end of the event block.
             if [[ "$line" =~ ^[-=]+$ ]]; then
                 # Default units to 1 if none was detected.
-                [ -z "$units" ] && units=1
+                [ -z "$unit" ] && unit=1
 
-                # Print found values.
-                if [ "$mode" = "events" ]; then
-                    echo "$event_name"
-                elif [ "$mode" = "units" ]; then
-                    echo "$units"
+                # Take combinations of the event_name and modifiers, if any exist.
+                if [ ${#modifiers[@]} -eq 0 ]; then
+                    _print_papi_event "$mode" "$event_name" "$unit"
                 else
-                    echo "$event_name : $units"
+                    for mod in "${modifiers[@]}"; do
+                        _print_papi_event "$mode" "$event_name$mod" "$unit" 
+                    done
                 fi
 
                 # Reset event block detection.
