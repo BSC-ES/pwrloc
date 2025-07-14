@@ -33,7 +33,7 @@ struct component* allocate_component(char* name) {
 
 /* Return a component with the provided component name. */
 struct component* get_component(struct component* comp, char* name) {
-    struct component* prev;
+    struct component* prev = NULL;
 
     /* Loop over provided component list. */
     while (comp) {
@@ -49,7 +49,11 @@ struct component* get_component(struct component* comp, char* name) {
 
     /* Create new component if there was no match. */
     comp = allocate_component(name);
-    prev->next = comp;
+
+    if (prev) {
+        prev->next = comp;
+    }
+
     return comp;
 }
 

@@ -104,7 +104,12 @@ void parse_input(
     while (event_token != NULL && unit_token != NULL) {
         /* Get the component name from the event and get the component node. */
         event_component = parse_event_component(event_token);
-        comp = get_component(*components, event_token);
+        comp = get_component(*components, event_component);
+
+        /* Store component as root if it is the first. */
+        if (*components == NULL) {
+            *components = comp;
+        }
 
         /* Add the event to the component node. */
         add_event_to_component(comp, event_token, unit_token);
