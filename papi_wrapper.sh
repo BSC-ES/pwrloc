@@ -56,16 +56,14 @@ _parse_papi_unit_to_joules() {
 
     # Parse SI prefixes.
     case "$unit" in
-        aJ)     echo "1e-18" ;;
-        fJ)     echo "1e-15" ;;
-        pJ)     echo "1e-12" ;;
-        nJ)     echo "1e-9"  ;;
-        uJ|µJ)  echo "1e-6"  ;;
-        mJ)     echo "1e-3"  ;;
-        J)      echo "1"     ;;
-        kJ)     echo "1e3"   ;;
-        MJ)     echo "1e6"   ;;
-        GJ)     echo "1e9"   ;;
+        pJ)     echo "0.000000000001"   ;;
+        nJ)     echo "0.000000001"      ;;
+        uJ|µJ)  echo "0.000001"         ;;
+        mJ)     echo "0.001"            ;;
+        J)      echo "1"                ;;
+        kJ)     echo "1000"             ;;
+        MJ)     echo "1000000"          ;;
+        GJ)     echo "1000000000"       ;;
         *)      echo "Unrecognized unit: $unit" >&2 ;;
     esac
 }
