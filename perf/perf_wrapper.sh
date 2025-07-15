@@ -5,8 +5,8 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$BASEDIR/utils.sh"
+PERFDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$PERFDIR/../utils.sh"
 
 # Returns 0 if perf is available, 1 otherwise.
 perf_available() {

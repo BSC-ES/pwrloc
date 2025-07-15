@@ -5,11 +5,10 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$BASEDIR/utils.sh"
+PAPIDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$PAPIDIR/../utils.sh"
 
-PAPI_PATH="$BASEDIR/papi"
-PAPI_PROFILER="$PAPI_PATH/papi_profiler.o"
+PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
 
 # Returns 0 if papi is available, 1 otherwise.
 papi_available() {
@@ -32,8 +31,8 @@ _compile_papi_profiler() {
     fi
 
     # Compile the code.
-    cc "$PAPI_PATH/papi_profiler.c" "$PAPI_PATH/papi_component.c" \
-        "$PAPI_PATH/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall
+    cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" \
+        "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall
     
     if [ ! $? -eq 0 ]; then
         print_error "Error while compiling $(basename $PAPI_PROFILER), exiting.."

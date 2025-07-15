@@ -10,10 +10,10 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # Import functions from utils and the tool wrappers.
 . "$BASEDIR/utils.sh"
-. "$BASEDIR/slurm_wrapper.sh"
-. "$BASEDIR/perf_wrapper.sh"
-. "$BASEDIR/papi_wrapper.sh"
-. "$BASEDIR/nvml_wrapper.sh"
+. "$BASEDIR/slurm/slurm_wrapper.sh"
+. "$BASEDIR/perf/perf_wrapper.sh"
+. "$BASEDIR/papi/papi_wrapper.sh"
+. "$BASEDIR/nvml/nvml_wrapper.sh"
 
 # Show how to use this program.
 show_help() {

@@ -5,8 +5,8 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$BASEDIR/utils.sh"
+SLURMDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$SLURMDIR/../utils.sh"
 
 # Returns the value of a given parameter from the SLURM config file.
 get_conf_value() {

@@ -5,11 +5,10 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$BASEDIR/utils.sh"
+NVMLDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+. "$NVMLDIR/../utils.sh"
 
-NVML_PATH="$BASEDIR/nvml"
-NVML_PROFILER="$NVML_PATH/nvml_profiler.o"
+NVML_PROFILER="$NVMLDIR/nvml_profiler.o"
 
 # Returns 0 if papi is available, 1 otherwise.
 nvml_available() {
@@ -32,7 +31,7 @@ _compile_nvml_profiler() {
     fi
 
     # Compile the code.
-    cc -I/usr/local/cuda/include "$NVML_PATH/nvml_profiler.c" -o "$NVML_PROFILER" -lnvidia-ml -Wall
+    cc -I/usr/local/cuda/include "$NVMLDIR/nvml_profiler.c" -o "$NVML_PROFILER" -lnvidia-ml -Wall
     
     if [ ! $? -eq 0 ]; then
         print_error "Error while compiling $(basename $NVML_PROFILER), exiting.."
