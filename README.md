@@ -1,20 +1,37 @@
 # Energy Profiler
 
-This project started as the DEODE phase 2 project in which we had to make a
-wrapper for energy profiling tools.
-The wrapper has an easy to use interface for listing and selecting an interface
-that is available on your machine to profile the given binary.
+The energy profiler is a portable tool for measuring the energy consumption of 
+applications. Not all systems support all energy profiling backends, and thus
+the energy profiler allows you to check what is available and target the
+available backend you are interested in.
 
 ## Available profilers
 
-Foo
+Currently, the energy profiler supports the following energy profiling tools:
 
-## How to use
+ - SLURM
+ - perf
+ - PAPI
 
-Bar
+## Usage
 
-## Dev values
-LUMI VARIABLES:  
-AcctGatherEnergyType    = acct_gather_energy/pm_counters  
-AcctGatherNodeFreq      = 30 sec  
-JobAcctGatherFrequency  = task=30,energy=30,filesystem=30  
+```console
+Usage: ./energy-profiler.sh [-p profiler][-l] [-v] [--] [bin] [args]  
+
+Options:  
+  -p profiler   Profile using provided profiler  
+  -l            List availability of the supported profilers  
+  -v            Enable verbose mode  
+  -h            Show this help message and exit 
+
+Application:  
+  [bin] [args]  Application (with arguments) to profile.  
+                SLURM notes:  
+                    - [bin] should be a SLURM job id.  
+                    - The dependency job id will be used if [bin] is not given.  
+
+Example:  
+  ./energy-profiler.sh -p slurm <slurm_job_id>  
+  ./energy-profiler.sh -p perf echo "Hello world"  
+  ./energy-profiler.sh -p perf -- echo "Foo Bar rules!"  
+```

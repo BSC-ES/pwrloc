@@ -137,7 +137,9 @@ int create_papi_eventset(struct component* component) {
         /* Create the event set. */
         retval = PAPI_create_eventset(&(component->eventset));
         if (retval != PAPI_OK) {
-            fprintf(stderr, "Error creating eventset: %s\n", PAPI_strerror(retval));
+            fprintf(
+                stderr, "Error creating eventset: %s\n", PAPI_strerror(retval)
+            );
             return EXIT_FAILURE;
         }
 
@@ -281,7 +283,10 @@ int main(int argc, char** argv) {
         
         while (cur_event) {
             unit_d = strtold(cur_event->unit, NULL);
-            printf("%s %.3lf J\n", cur_event->name, (double)(cur_comp->values[event_idx++] * unit_d));
+            printf(
+                "%s %.3lf J\n", cur_event->name, 
+                (double)(cur_comp->values[event_idx++] * unit_d)
+            );
             cur_event = cur_event->next;
         }
 
