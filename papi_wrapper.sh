@@ -33,7 +33,7 @@ _compile_papi_profiler() {
 
     # Compile the code.
     cc "$PAPI_PATH/papi_profiler.c" "$PAPI_PATH/papi_component.c" \
-        "$PAPI_PATH/papi_event.c" -o "$PAPI_PROFILER" -lpapi
+        "$PAPI_PATH/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall
     
     if [ ! $? -eq 0 ]; then
         print_error "Error while compiling $(basename $PAPI_PROFILER), exiting.."

@@ -4,7 +4,6 @@
  * -----------------------------------------------------------------------------
  */
 
-
 #include "papi_component.h"
 #include "papi_event.h"
 
@@ -190,7 +189,7 @@ void clean_up(struct component* components, char* program) {
     if (program != NULL) free(program);
 }
 
-/* Usage:   ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
+/* Usage: ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
 int main(int argc, char** argv) {
     /* Parse user input. 
      * NOTE: This mallocs events and program! 

@@ -13,6 +13,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 . "$BASEDIR/slurm_wrapper.sh"
 . "$BASEDIR/perf_wrapper.sh"
 . "$BASEDIR/papi_wrapper.sh"
+. "$BASEDIR/nvml_wrapper.sh"
 
 # Show how to use this program.
 show_help() {
@@ -72,11 +73,23 @@ show_profilers() {
 
     # Fetch and print PAPI variables.
     local papi_avail=$(papi_available)
-    local papi_events=$(papi_events)
+    local papi_events=""
+    if [ $papi_avail -eq 0 ]; then
+        local papi_events=$(papi_events)
+    fi
+
     echo -e "========== PAPI ==========="
     echo "papi_avail: $(bool_to_text "$papi_avail")"
-    echo "papi_events:"
-    echo "$papi_events" | awk '{print "\t" $0}'
+    if [ $papi_avail -eq 0 ]; then
+        echo "papi_events:"
+        echo "$papi_events" | awk '{print "\t" $0}'
+    fi
+    echo ""
+
+    # Fetch and print NVML variables.
+    local nvml_avail=$(nvml_available)
+    echo -e "========== NVML ==========="
+    echo "nvml_avail: $(bool_to_text "$nvml_avail")"
     echo ""
 }
 
@@ -132,7 +145,7 @@ main() {
     case "$profiler" in
         slurm)
             # Validate SLURM availability.
-            if [[ "$slurm_available" == "1" ]]; then
+            if [[ "$(slurm_available)" == "1" ]]; then
                 print_error "SLURM energy accounting is not available."
                 exit 1
             fi
@@ -140,31 +153,27 @@ main() {
             ;;
         perf)
             # Validate PERF availability.
-            if [[ "$perf_available" == "1" ]]; then
-                print_error "perf is not available."
+            if [[ "$(perf_available)" == "1" ]]; then
+                print_error "Perf is not available."
                 exit 1
             fi
             perf_profile "$bin" "$args"
             ;;
         papi)
             # Validate PAPI availability.
-            if [[ "$papi_available" == "1" ]]; then
-                print_error "papi is not available."
+            if [[ "$(papi_available)" == "1" ]]; then
+                print_error "PAPI is not available, is the module loaded?"
                 exit 1
             fi
             papi_profile "$bin" "$args"
             ;;
-        likwid)
-            # Validate LIKWID availability.
-            # TODO
-            ;;
-        meric)
-            # Validate MERIC availability.
-            # TODO
-            ;;
-        ear)
-            # Validate EAR availability.
-            # TODO
+        nvml)
+            # Validate NVML availability.
+            if [[ "$(nvml_available)" == "1" ]]; then
+                print_error "NVML is not available, is the module loaded?"
+                exit 1
+            fi
+            nvml_profile "$bin" "$args"
             ;;
         "") # Variable not set.
             ;;
