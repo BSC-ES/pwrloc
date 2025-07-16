@@ -9,7 +9,7 @@
 BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # Import functions from utils and the tool wrappers.
-. "$BASEDIR/utils.sh"
+. "$BASEDIR/utils/utils.sh"
 . "$BASEDIR/slurm/slurm_wrapper.sh"
 . "$BASEDIR/perf/perf_wrapper.sh"
 . "$BASEDIR/papi/papi_wrapper.sh"

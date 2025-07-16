@@ -6,13 +6,13 @@
 
 # Get the directory where this file is located to load dependencies.
 NVMLDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$NVMLDIR/../utils.sh"
+. "$NVMLDIR/../utils/utils.sh"
 
 NVML_PROFILER="$NVMLDIR/nvml_profiler.o"
 
 # Returns 0 if papi is available, 1 otherwise.
 nvml_available() {
-    verbose_echo print_info "Checking for NVML availability.."
+    verbose_echo print_info "Checking for nvidia-smi availability.."
 
     # Check if the papi_avail command is available.
     if ! function_exists nvidia-smi; then
@@ -48,7 +48,11 @@ _compile_nvml_profiler() {
 
 # Profile the provided binary with NVML.
 nvml_profile() {
-    # Make sure NVML is available.
+    # Make sure nvidia-smi is available.
+    if ! nvml_available 2>&1 > /dev/null; then
+        print_error "nvidia-smi is not available."
+        return
+    fi
 
     # Check if the nvml.h library is found.
     local nvml_header=$(echo '#include <nvml.h>' | gcc -E -I/usr/local/cuda/include - > /dev/null && echo "Found" || echo "Not found")

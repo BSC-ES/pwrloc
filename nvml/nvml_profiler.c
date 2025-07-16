@@ -40,12 +40,8 @@ int main(int argc, char* argv[]) {
     /* Register all available devices. */
     unsigned int num_devices;
     nvmlDeviceGetCount(&num_devices);
-
     nvmlDevice_t devices[num_devices];
-    // unsigned int power_mw[num_devices];
 
-    // devices = malloc(sizeof(nvmlDevice_t) * num_devices);
-    // power_mw = malloc(sizeof(unsigned int) * num_devices);
     for (unsigned int i = 0; i < num_devices; i++) {
         result = nvmlDeviceGetHandleByIndex(i, &devices[i]);
         if (result != NVML_SUCCESS) {

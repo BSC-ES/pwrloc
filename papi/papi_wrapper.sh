@@ -6,7 +6,7 @@
 
 # Get the directory where this file is located to load dependencies.
 PAPIDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$PAPIDIR/../utils.sh"
+. "$PAPIDIR/../utils/utils.sh"
 
 PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
 
