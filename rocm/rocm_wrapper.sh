@@ -75,7 +75,7 @@ rocm_profile() {
     local total_energy=0.0
     for i in "${!devices[@]}"; do
         echo -e "GPU ${devices[i]}:\t${energy[i]} J"
-        ((total_energy+=energy[i]))
+        total_energy=$(echo "$total_energy + ${energy[i]}" | bc -l)
     done
     echo -e "Total:\t${energy[i]} J"
 }
