@@ -24,7 +24,7 @@ rocm_available() {
 
 # Get a ROCM power measurement for non-N/A cards.
 _get_rocm_power_measurement() {
-    rocm-smi --showpower --csv | tail -n +2 | while IFS=',' read -r device power; do
+    rocm-smi --showpower --csv | tail -n +2 | head -n -1 | while IFS=',' read -r device power; do
         if [[ "$power" != "N/A"* ]]; then
             echo "$device $power"
         fi
@@ -36,7 +36,14 @@ rocm_profile() {
     # Make sure rocm-smi is available.
     if ! rocm_available 2>&1 > /dev/null; then
         print_error "rocm-smi is not available."
-        return
+        return 1
+    fi
+
+    # Make sure that the cards are ready for power sampling.
+    local sample=$(rocm-smi --showpower 2>&1)
+    if echo "$sample" | grep -q "ERROR:root:Driver not initialized"; then
+        print_error "Failed to sample GPU power, are you on a compute node?"
+        return 1
     fi
 
     # Initialize arrays for trackig energy consumption.
@@ -52,18 +59,17 @@ rocm_profile() {
     # Launch the application and store PID for tracking.
     "$@" &
     local child_pid=$!
-    verbose_echo print_into "Application PID: $child_pid"
+    verbose_echo print_info "Application PID: $child_pid"
 
     # Poll with a set frequency until the child process is finished.
     local poll_time_s=0.2
     local watts=0.0
 
-    while kill -0 "$PID" 2>/dev/null; do
+    while kill -0 "$child_pid" 2>/dev/null; do
         i=0
         while read -r device power; do
-            # strip W and convert to float
             watts=$(echo "$power")
-            energy_consumed=$(echo "$watts * $INTERVAL" | bc -l)
+            energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
             energy[i]=$(echo "${energy[i]} + $energy_consumed" | bc -l)
             ((i++))
         done < <(_get_rocm_power_measurement)
