@@ -14,6 +14,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 . "$BASEDIR/perf/perf_wrapper.sh"
 . "$BASEDIR/papi/papi_wrapper.sh"
 . "$BASEDIR/nvml/nvml_wrapper.sh"
+. "$BASEDIR/rocm/rocm_wrapper.sh"
 
 # Show how to use this program.
 show_help() {
@@ -90,6 +91,12 @@ show_profilers() {
     local nvml_avail=$(nvml_available)
     echo -e "========== NVML ==========="
     echo "nvml_avail: $(bool_to_text "$nvml_avail")"
+    echo ""
+
+    # Fetch and print NVML variables.
+    local rocm_avail=$(rocm_available)
+    echo -e "========== ROCM ==========="
+    echo "rocm_avail: $(bool_to_text "$rocm_avail")"
     echo ""
 }
 
@@ -170,10 +177,18 @@ main() {
         nvml)
             # Validate NVML availability.
             if [[ "$(nvml_available)" == "1" ]]; then
-                print_error "NVML is not available, is the module loaded?"
+                print_error "nvidia-smi is not available, is the module loaded?"
                 exit 1
             fi
             nvml_profile "$bin" "$args"
+            ;;
+        rocm)
+            # Validate ROCM availability.
+            if [[ "$(rocm_available)" == "1" ]]; then
+                print_error "rocm-smi is not available, is the module loaded?"
+                exit 1
+            fi
+            rocm_profile "$bin" "$args"
             ;;
         "") # Variable not set.
             ;;

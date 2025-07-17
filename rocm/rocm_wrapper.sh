@@ -52,6 +52,7 @@ rocm_profile() {
     # Launch the application and store PID for tracking.
     "$@" &
     local child_pid=$!
+    verbose_echo print_into "Application PID: $child_pid"
 
     # Poll with a set frequency until the child process is finished.
     local poll_time_s=0.2
