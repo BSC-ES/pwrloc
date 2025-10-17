@@ -2,7 +2,7 @@
 [//]: # (TODO: Add shields.)
 
 The Portable Power Locality (pwrloc) tool acts as an interface for energy profilers.
-There are multiple energy profiling backends available, each different in their spatial and temporal resolution.
+There are multiple energy profiling backends available, with a different spatial and temporal resolution.
 What backend is best depends fully on your use case.
 However, not all systems come with the backends or tools that you want to use, and often sysadmins are reluctant to install new ones.
 The pwrloc tool makes it easy to detect and target different energy profiling tools and backends.
