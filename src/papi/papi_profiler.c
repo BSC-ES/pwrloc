@@ -21,7 +21,7 @@ char* parse_event_component(char* event) {
     char* event_save;
     char* event_token = strtok_r(event_str, ":", &event_save);
 
-    /* Check for no occurence of :, and return full string if so. */
+    /* Check for no occurrence of :, and return full string if so. */
     if (event_token == NULL) {
         return event;
     }
@@ -32,7 +32,7 @@ char* parse_event_component(char* event) {
 /* Concatenate the arguments defining the program and args to be profiled. */
 void concat_program_args(int argc, char** argv, char** program) {
     size_t buf_size = 512;
-    
+
     /* Allocate space for the total string, and initialize as empty. */
     *program = malloc(buf_size);
     if (!*program) {
@@ -72,8 +72,8 @@ void concat_program_args(int argc, char** argv, char** program) {
     }
 }
 
-/* Parse user input into list of events and the program to profile. 
- * Returns the number of events. 
+/* Parse user input into list of events and the program to profile.
+ * Returns the number of events.
  */
 void parse_input(
     int argc, char** argv, struct component** components, char** program
@@ -122,8 +122,8 @@ void parse_input(
     concat_program_args(argc, argv, program);
 }
 
-/* Create a PAPI event set and return the number of valid events. 
- * Returns EXIT_SUCCESS on success, EXIT_FAILURE otherwise. 
+/* Create a PAPI event set and return the number of valid events.
+ * Returns EXIT_SUCCESS on success, EXIT_FAILURE otherwise.
  */
 int create_papi_eventset(struct component* component) {
     int retval;
@@ -150,22 +150,22 @@ int create_papi_eventset(struct component* component) {
             if (retval != PAPI_OK) {
                 fprintf(
                     stderr,
-                    "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m", 
+                    "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m",
                     event->name, PAPI_strerror(retval)
                 );
 
                 /* Remove current event from list and move to the next. */
-                next = event->next;                
+                next = event->next;
                 event->prev->next = event->next;
-                
-                if (next) { 
+
+                if (next) {
                     event->next->prev = event->prev;
                 }
 
                 free(event);
                 event = next;
             } else {
-                /* Increment number of succesfully parsed events. */
+                /* Increment number of successfully parsed events. */
                 num_events++;
 
                 /* Move to the next event on success. */
@@ -191,8 +191,8 @@ void clean_up(struct component* components, char* program) {
 
 /* Usage: ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
 int main(int argc, char** argv) {
-    /* Parse user input. 
-     * NOTE: This mallocs events and program! 
+    /* Parse user input.
+     * NOTE: This mallocs events and program!
      */
     struct component* components = NULL;
     char* program = NULL;
@@ -243,13 +243,13 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    /* Execute application. 
-     * Using system() works with RAPL as it profiles system wide. 
+    /* Execute application.
+     * Using system() works with RAPL as it profiles system wide.
      */
     retval = system(program);
     if (retval != EXIT_SUCCESS) {
         fprintf(
-            stderr, 
+            stderr,
             "\033[1;33mWARNING: The user's program failed.\n\033[0m"
         );
     }
@@ -279,11 +279,11 @@ int main(int argc, char** argv) {
     while (cur_comp) {
         event_idx = 0;
         cur_event = cur_comp->first_event;
-        
+
         while (cur_event) {
             unit_d = strtold(cur_event->unit, NULL);
             printf(
-                "%s %.3lf J\n", cur_event->name, 
+                "%s %.3lf J\n", cur_event->name,
                 (double)(cur_comp->values[event_idx++] * unit_d)
             );
             cur_event = cur_event->next;

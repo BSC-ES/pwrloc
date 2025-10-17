@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# This wrapper contains functions for interacting with the perf stat energy 
+# This wrapper contains functions for interacting with the perf stat energy
 # events.
 # ------------------------------------------------------------------------------
 
@@ -105,7 +104,7 @@ _gather_results() {
 
 # Profile given application with perf and return the total consumed energy.
 perf_profile() {
-    # Acquire energy consumed for this rank (or total exection without MPI).
+    # Acquire energy consumed for this rank (or total execution without MPI).
     energy=$(_get_energy_consumed)
 
     # Get job and rank ID and write to output file.

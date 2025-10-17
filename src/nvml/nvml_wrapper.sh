@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# This wrapper contains functions for interacting with the NVML energy 
+# This wrapper contains functions for interacting with the NVML energy
 # profiling for NVIDIA GPUs.
 # ------------------------------------------------------------------------------
 
@@ -32,7 +31,7 @@ _compile_nvml_profiler() {
 
     # Compile the code.
     cc -I/usr/local/cuda/include "$NVMLDIR/nvml_profiler.c" -o "$NVML_PROFILER" -lnvidia-ml -Wall
-    
+
     if [ ! $? -eq 0 ]; then
         print_error "Error while compiling $(basename $NVML_PROFILER), exiting.."
         exit 1

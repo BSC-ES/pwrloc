@@ -1,0 +1,51 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+exclude: |
+  (?x)(
+      ^.idea/|
+      ^venv/
+  )
+default_stages: [pre-commit]
+repos:
+# Sync versions of dependencies within pre-commit.
+- repo: https://github.com/mxr/sync-pre-commit-deps
+  rev: v0.0.3
+  hooks:
+    - id: sync-pre-commit-deps
+
+# Fix spelling mistakes in all code.
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.1
+  hooks:
+  - id: codespell
+
+# Fix commong syntax issues.
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v6.0.0
+  hooks:
+    - id: check-added-large-files
+    - id: check-case-conflict
+    - id: check-executables-have-shebangs
+    - id: check-illegal-windows-names
+    - id: check-merge-conflict
+    - id: check-shebang-scripts-are-executable
+    - id: check-symlinks
+    - id: destroyed-symlinks
+    - id: check-yaml
+    - id: detect-private-key
+    - id: end-of-file-fixer
+    - id: mixed-line-ending
+      args:
+        - --fix=lf
+    - id: trailing-whitespace
+      args: [--markdown-linebreak-ext=md]
+      exclude: ^LICENSE
+
+# Check tabs and line endings.
+- repo: https://github.com/Lucas-C/pre-commit-hooks
+  rev: v1.5.5
+  hooks:
+    - id: remove-tabs
+    - id: forbid-tabs
+    - id: remove-crlf
+    - id: forbid-crlf

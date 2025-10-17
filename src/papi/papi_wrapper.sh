@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# This wrapper contains functions for interacting with the PAPI energy 
+# This wrapper contains functions for interacting with the PAPI energy
 # profiling options.
 # ------------------------------------------------------------------------------
 
@@ -33,7 +32,7 @@ _compile_papi_profiler() {
     # Compile the code.
     cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" \
         "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall
-    
+
     if [ ! $? -eq 0 ]; then
         print_error "Error while compiling $(basename $PAPI_PROFILER), exiting.."
         exit 1
@@ -152,7 +151,7 @@ _parse_papi_native_avail() {
                     _print_papi_event "$mode" "$event_name" "$unit"
                 else
                     for mod in "${modifiers[@]}"; do
-                        _print_papi_event "$mode" "$event_name$mod" "$unit" 
+                        _print_papi_event "$mode" "$event_name$mod" "$unit"
                     done
                 fi
 

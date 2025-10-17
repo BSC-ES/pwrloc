@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# This wrapper contains functions for interacting with the SLURM energy 
+# This wrapper contains functions for interacting with the SLURM energy
 # accounting plugin.
 # ------------------------------------------------------------------------------
 
@@ -12,7 +11,7 @@ SLURMDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 get_conf_value() {
     # Get value from config.
     local line=$(scontrol show config | grep "$1")
-    
+
     # Remove all before "=", then strip whitespace on both ends.
     local value=$(
         echo "$line" | sed 's/^[^=]*=[[:space:]]*//;s/[[:space:]]*$//'
@@ -36,7 +35,7 @@ slurm_profiler_freq() {
         IFS=',' set -- $p_freq
         for part; do
             case "$part" in
-                energy=*) 
+                energy=*)
                     echo "${part#*=}"
                     return 0
                     ;;
@@ -51,7 +50,7 @@ slurm_profiler_freq() {
 # Returns 0 if SLURM is available, 1 otherwise.
 slurm_available() {
     verbose_echo print_info "Checking for SLURM availability.."
-    
+
     # Check if the plugin is set within the SLURM config.
     if ! function_exists scontrol; then
         print_warning "Function 'scontrol' not available."

@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
         result = nvmlDeviceGetHandleByIndex(i, &devices[i]);
         if (result != NVML_SUCCESS) {
             fprintf(
-                stderr, 
-                "Failed to get handle for GPU %d: %s\n", 
+                stderr,
+                "Failed to get handle for GPU %d: %s\n",
                 i, nvmlErrorString(result)
             );
             return EXIT_FAILURE;
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
     if (pid == 0) {
         /* The child process executes the application and terminates. */
         execvp(argv[1], &argv[1]);
-        
+
         /* Exit with error if the child process did not terminate. */
         perror("execvp failed");
         exit(EXIT_FAILURE);
@@ -89,8 +89,8 @@ int main(int argc, char* argv[]) {
                 energy_consumed[i] += (power_mw / 1000.0) * dt;
             } else {
                 fprintf(
-                    stderr, 
-                    "Failed to get power for GPU %d: %s\n", 
+                    stderr,
+                    "Failed to get power for GPU %d: %s\n",
                     i, nvmlErrorString(result)
                 );
             }

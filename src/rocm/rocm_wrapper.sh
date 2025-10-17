@@ -1,6 +1,5 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# This wrapper contains functions for interacting with the ROCM energy 
+# This wrapper contains functions for interacting with the ROCM energy
 # profiling module for AMD GPUs.
 # ------------------------------------------------------------------------------
 

@@ -7,7 +7,7 @@ What backend is best depends fully on your use case.
 However, not all systems come with the backends or tools that you want to use, and often sysadmins are reluctant to install new ones.
 The pwrloc tool makes it easy to detect and target different energy profiling tools and backends.
 
-## Supported Profilers
+## Supported profilers
 
 Currently, pwrloc supports the following energy profiling tools:
 
@@ -17,7 +17,7 @@ Currently, pwrloc supports the following energy profiling tools:
 - [NVML](https://developer.nvidia.com/management-library-nvml)
 - [rocm-smi](https://github.com/ROCm/rocm_smi_lib)
 
-## How to Use
+## How to use
 
 ```console
 Usage: ./pwrloc.sh [-p profiler][-l] [-v] [--] [bin] [args]

@@ -59,7 +59,7 @@ struct component* get_component(struct component* comp, char* name) {
 
 /* Add new event to the singly linked list of a component. */
 void add_event_to_component(struct component* comp, char* name, char* unit) {
-    /* Set new event as first node, or prepand to end of existing list. */
+    /* Set new event as first node, or prepend to end of existing list. */
     if (comp->first_event == NULL) {
         comp->first_event = allocate_event(name, unit);
         comp->last_event = comp->first_event;
@@ -85,10 +85,10 @@ void clean_up_component(struct component* root) {
 
         /* Clean up values. */
         free(root->values);
-        
+
         /* Clean up link list of events. */
         cur_event = root->first_event;
-        
+
         while (cur_event) {
             next_event = cur_event->next;
             free(cur_event);

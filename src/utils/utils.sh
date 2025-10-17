@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
 # This file contains common utils to be used.
 # ------------------------------------------------------------------------------
@@ -76,7 +75,7 @@ print_full_width() {
     local max_width=80
     local term_width=$(tput cols 2>/dev/null || echo $max_width)
     [ "$term_width" -gt "$max_width" ] && term_width=$max_width
-    
+
     # Print in terminal width.
     printf '%*s\n' "$term_width" '' | tr ' ' "$1"
 }
