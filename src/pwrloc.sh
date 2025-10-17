@@ -19,11 +19,11 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 # Show how to use this program.
 show_help() {
     cat << EOF
-Usage: $(basename "$0") [-p profiler][-l] [-v] [--] [bin] [args]
+Usage: $(basename "$0") [-l] [-p profiler] [-v] [--] [bin] [args]
 
 Options:
-  -p profiler   Profile using provided profiler
   -l            List availability of the supported profilers
+  -p profiler   Profile using provided profiler
   -v            Enable verbose mode
   -h            Show this help message and exit
 

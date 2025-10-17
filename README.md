@@ -20,11 +20,11 @@ Currently, pwrloc supports the following energy profiling tools:
 ## How to use
 
 ```console
-Usage: ./pwrloc.sh [-p profiler][-l] [-v] [--] [bin] [args]
+Usage: ./pwrloc.sh [-l] [-p profiler] [-v] [--] [bin] [args]
 
 Options:
-  -p profiler   Profile using provided profiler
   -l            List availability of the supported profilers
+  -p profiler   Profile using provided profiler
   -v            Enable verbose mode
   -h            Show this help message and exit
 
@@ -40,3 +40,13 @@ Example:
   ./pwrloc.sh -p perf echo "Hello world"
   ./pwrloc.sh -p perf -- echo "Foo Bar rules!"
 ```
+
+## Contributing
+
+Great that you're interested in contributing to the project!
+This project is meant to cover as many tools and systems as possible, making your help essential.
+Please take a look at the [CONTRIBUTING.md](CONTRIBUTING.md) file which contains instructions on how you can contribute.
+
+## License
+
+This project is licensed with the LGPLv3 license, which you can find in the [LICENSE](LICENSE) and [LICENSE.LESSER](LICENSE.LESSER) files.
