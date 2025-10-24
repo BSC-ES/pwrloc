@@ -1,4 +1,7 @@
-[//]: # (TODO: Add logo.)
+<h1 align="center">
+  <img src="https://raw.githubusercontent.com/bsc-es/pwrloc/main/docs/img/pwrloc_logo_rectangle.png" width="300">
+</h1><br>
+
 [//]: # (TODO: Add shields.)
 
 The Portable Power Locality (pwrloc) tool acts as an interface for energy profilers.
