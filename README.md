@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="https://raw.githubusercontent.com/bsc-es/pwrloc/main/docs/img/pwrloc_logo_rectangle.png" width="300">
+  <img src="https://raw.githubusercontent.com/bsc-es/pwrloc/main/docs/img/pwrloc_logo_rectangle.png" width="500">
 </h1><br>
 
 [//]: # (TODO: Add shields.)
