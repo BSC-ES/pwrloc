@@ -4,14 +4,14 @@
  * -----------------------------------------------------------------------------
  */
 
-#include "papi_component.h"
-#include "papi_event.h"
-
+#include <papi.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <papi.h>
 #include <string.h>
-#include <stdbool.h>
+
+#include "papi_component.h"
+#include "papi_event.h"
 
 int ARGV_PROGRAM_IDX = 3;
 
@@ -67,7 +67,8 @@ void concat_program_args(int argc, char** argv, char** program) {
         }
 
         /* Concatenate new string into total. */
-        if (i > ARGV_PROGRAM_IDX) strcat(*program, " ");
+        if (i > ARGV_PROGRAM_IDX)
+            strcat(*program, " ");
         strcat(*program, argv[i]);
     }
 }
@@ -150,7 +151,8 @@ int create_papi_eventset(struct component* component) {
             if (retval != PAPI_OK) {
                 fprintf(
                     stderr,
-                    "\033[1;33mWARNING: Invalid PAPI counter: %s\t(%s)\n\033[0m",
+                    "\033[1;33mWARNING: Invalid PAPI counter: "
+                    "%s\t(%s)\n\033[0m",
                     event->name, PAPI_strerror(retval)
                 );
 
@@ -185,8 +187,10 @@ int create_papi_eventset(struct component* component) {
 
 /* Clean up everything that is allocated. */
 void clean_up(struct component* components, char* program) {
-    if (components != NULL) clean_up_component(components);
-    if (program != NULL) free(program);
+    if (components != NULL)
+        clean_up_component(components);
+    if (program != NULL)
+        free(program);
 }
 
 /* Usage: ./papi_profiler "<events>" "<units>" "<bin>" [arg1 arg2 arg3 ...] */
@@ -218,7 +222,9 @@ int main(int argc, char** argv) {
     while (cur_comp) {
         retval = PAPI_reset(cur_comp->eventset);
         if (retval != PAPI_OK) {
-            fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
+            fprintf(
+                stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval)
+            );
             shutdown = true;
         }
         cur_comp = cur_comp->next;
@@ -233,7 +239,9 @@ int main(int argc, char** argv) {
     while (cur_comp) {
         retval = PAPI_start(cur_comp->eventset);
         if (retval != PAPI_OK) {
-            fprintf(stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval));
+            fprintf(
+                stderr, "Error resetting PAPI: %s\n", PAPI_strerror(retval)
+            );
             shutdown = true;
         }
         cur_comp = cur_comp->next;
@@ -249,8 +257,7 @@ int main(int argc, char** argv) {
     retval = system(program);
     if (retval != EXIT_SUCCESS) {
         fprintf(
-            stderr,
-            "\033[1;33mWARNING: The user's program failed.\n\033[0m"
+            stderr, "\033[1;33mWARNING: The user's program failed.\n\033[0m"
         );
     }
 

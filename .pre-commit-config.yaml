@@ -49,3 +49,9 @@ repos:
     - id: forbid-tabs
     - id: remove-crlf
     - id: forbid-crlf
+
+# Format C files.
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v21.1.2
+  hooks:
+    - id: clang-format

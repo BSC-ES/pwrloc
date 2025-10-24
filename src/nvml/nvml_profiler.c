@@ -4,12 +4,12 @@
  * -----------------------------------------------------------------------------
  */
 
+#include <nvml.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include <nvml.h>
-#include <sys/wait.h>
 
 #define INTERVAL_MS 100
 
@@ -46,9 +46,8 @@ int main(int argc, char* argv[]) {
         result = nvmlDeviceGetHandleByIndex(i, &devices[i]);
         if (result != NVML_SUCCESS) {
             fprintf(
-                stderr,
-                "Failed to get handle for GPU %d: %s\n",
-                i, nvmlErrorString(result)
+                stderr, "Failed to get handle for GPU %d: %s\n", i,
+                nvmlErrorString(result)
             );
             return EXIT_FAILURE;
         }
@@ -84,14 +83,14 @@ int main(int argc, char* argv[]) {
 
         /* Get power consumption and transform in energy consumption. */
         for (unsigned int i = 0; i < num_devices; i++) {
-            if (nvmlDeviceGetPowerUsage(devices[i], &power_mw) == NVML_SUCCESS) {
+            if (nvmlDeviceGetPowerUsage(devices[i], &power_mw) ==
+                NVML_SUCCESS) {
                 /* Convert mW to W. */
                 energy_consumed[i] += (power_mw / 1000.0) * dt;
             } else {
                 fprintf(
-                    stderr,
-                    "Failed to get power for GPU %d: %s\n",
-                    i, nvmlErrorString(result)
+                    stderr, "Failed to get power for GPU %d: %s\n", i,
+                    nvmlErrorString(result)
                 );
             }
         }

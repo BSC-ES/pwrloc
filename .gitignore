@@ -3,3 +3,6 @@
 
 # Ignore binaries.
 **/*.o
+
+# Ignore VSCode settings
+**/.vscode/

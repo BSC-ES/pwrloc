@@ -1,15 +1,15 @@
-----------------------------------------------------------
- *//* -----------------------------------------------------------------------------
+/* -----------------------------------------------------------------------------
  * Contains definitions for a singly linked list of PAPI event components.
- * -------------------
-
-#include "papi_component.h"
-#include "papi_event.h"
+ * -----------------------------------------------------------------------------
+ */
 
 #include <papi.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "papi_component.h"
+#include "papi_event.h"
 
 /* Allocate and initialize a new event linked list node. */
 struct component* allocate_component(char* name) {
@@ -39,7 +39,7 @@ struct component* get_component(struct component* comp, char* name) {
     while (comp) {
         /* On a match, return component. */
         if (strcmp(comp->name, name) == 0) {
-           return comp;
+            return comp;
         }
 
         /* Move up to the next node. */

@@ -5,8 +5,8 @@
 
 #include "papi_event.h"
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /* Allocate and initialize a new event linked list node. */
 struct event* allocate_event(char* name, char* unit) {
