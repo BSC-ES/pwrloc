@@ -44,17 +44,16 @@ _compile_nvml_profiler() {
 }
 
 # Profile the provided binary with NVML.
-nvml_profile()
-               {
+nvml_profile() {
     # Make sure nvidia-smi is available.
-    if ! nvml_available > /dev/null 2>&1; then
+    if ! nvml_available >/dev/null 2>&1; then
         print_error "nvidia-smi is not available."
         return
     fi
 
     # Check if the nvml.h library is found.
     local nvml_header
-    nvml_header=$(echo '#include <nvml.h>' | gcc -E -I/usr/local/cuda/include - > /dev/null && echo "Found" || echo "Not found")
+    nvml_header=$(echo '#include <nvml.h>' | gcc -E -I/usr/local/cuda/include - >/dev/null && echo "Found" || echo "Not found")
     if [ "$nvml_header" == "Not found" ]; then
         print_error "Cannot find nvml.h, is the required module loaded?"
         return 1

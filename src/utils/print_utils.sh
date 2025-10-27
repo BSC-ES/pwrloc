@@ -3,11 +3,11 @@
 # ------------------------------------------------------------------------------
 
 # Color codes for print_*() functions.
-COLOR_RESET='\033[0m'       # Reset to default color
-COLOR_INFO='\033[1;34m'     # Blue
-COLOR_SUCCESS='\033[1;32m'  # Green
-COLOR_WARNING='\033[1;33m'  # Yellow
-COLOR_ERROR='\033[1;31m'    # Red
+COLOR_RESET='\033[0m'      # Reset to default color
+COLOR_INFO='\033[1;34m'    # Blue
+COLOR_SUCCESS='\033[1;32m' # Green
+COLOR_WARNING='\033[1;33m' # Yellow
+COLOR_ERROR='\033[1;31m'   # Red
 
 # Info message.
 print_info() {
@@ -60,7 +60,7 @@ print_full_width() {
     # Set width for printing.
     local max_width term_width
     max_width=80
-    term_width=$(tput cols 2> /dev/null || echo $max_width)
+    term_width=$(tput cols 2>/dev/null || echo $max_width)
     [ "$term_width" -gt "$max_width" ] && term_width=$max_width
 
     # Print in terminal width.

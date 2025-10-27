@@ -5,14 +5,7 @@ insert_final_newline = true
 
 # --language-dialect
 shell_variant      = posix
-# simplify           = false
 binary_next_line   = true
 
 # --case-indent
 switch_case_indent = true
-# space_redirects    = true
-# keep_padding       = true
-
-# --func-next-line
-# function_next_line = true
-# minify             = false

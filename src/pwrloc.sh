@@ -118,24 +118,24 @@ main() {
     # Parse options.
     while getopts ":p:lvh" opt; do
         case "$opt" in
-        p) profiler="$OPTARG" ;;
-        l)
-            show_profilers
-            exit 1
-            ;;
-        v) export VERBOSE=1 ;;
-        h)
-            show_help
-            exit 0
-            ;;
-        :)
-            echo "Option -$OPTARG requires an argument." >&2
-            exit 1
-            ;;
-        \?)
-            echo "Invalid option: -$OPTARG" >&2
-            exit 1
-            ;;
+            p) profiler="$OPTARG" ;;
+            l)
+                show_profilers
+                exit 1
+                ;;
+            v) export VERBOSE=1 ;;
+            h)
+                show_help
+                exit 0
+                ;;
+            :)
+                echo "Option -$OPTARG requires an argument." >&2
+                exit 1
+                ;;
+            \?)
+                echo "Invalid option: -$OPTARG" >&2
+                exit 1
+                ;;
         esac
     done
     shift $((OPTIND - 1))
@@ -146,7 +146,7 @@ main() {
         bin="$1"
         shift
         local args
-        args="$@"  # TODO: Transform into array!
+        args="$@" # TODO: Transform into array!
     elif [ -n "$profiler" ]; then
         # Check if a job id was passed as dependency for SLURM profiling.
         if [ "$profiler" == "slurm" ]; then
@@ -170,53 +170,53 @@ main() {
 
     # Validate the profiler and profile the application afterwards.
     case "$profiler" in
-    slurm)
-        # Validate SLURM availability.
-        if [[ "$(slurm_available)" == "1" ]]; then
-            print_error "SLURM energy accounting is not available."
+        slurm)
+            # Validate SLURM availability.
+            if [[ "$(slurm_available)" == "1" ]]; then
+                print_error "SLURM energy accounting is not available."
+                exit 1
+            fi
+            slurm_profile "$bin"
+            ;;
+        perf)
+            # Validate PERF availability.
+            if [[ "$(perf_available)" == "1" ]]; then
+                print_error "Perf is not available."
+                exit 1
+            fi
+            perf_profile "$bin" "$args"
+            ;;
+        papi)
+            # Validate PAPI availability.
+            if [[ "$(papi_available)" == "1" ]]; then
+                print_error "PAPI is not available, is the module loaded?"
+                exit 1
+            fi
+            papi_profile "$bin" "$args"
+            ;;
+        nvml)
+            # Validate NVML availability.
+            if [[ "$(nvml_available)" == "1" ]]; then
+                print_error "nvidia-smi is not available, is the module loaded?"
+                exit 1
+            fi
+            nvml_profile "$bin" "$args"
+            ;;
+        rocm)
+            # Validate ROCM availability.
+            if [[ "$(rocm_available)" == "1" ]]; then
+                print_error "rocm-smi is not available, is the module loaded?"
+                exit 1
+            fi
+            rocm_profile "$bin" "$args"
+            ;;
+        "") # Variable not set.
+            ;;
+        *)
+            echo "Invalid profiler: $profiler"
+            echo "Valid profilers: slurm|perf|papi"
             exit 1
-        fi
-        slurm_profile "$bin"
-        ;;
-    perf)
-        # Validate PERF availability.
-        if [[ "$(perf_available)" == "1" ]]; then
-            print_error "Perf is not available."
-            exit 1
-        fi
-        perf_profile "$bin" "$args"
-        ;;
-    papi)
-        # Validate PAPI availability.
-        if [[ "$(papi_available)" == "1" ]]; then
-            print_error "PAPI is not available, is the module loaded?"
-            exit 1
-        fi
-        papi_profile "$bin" "$args"
-        ;;
-    nvml)
-        # Validate NVML availability.
-        if [[ "$(nvml_available)" == "1" ]]; then
-            print_error "nvidia-smi is not available, is the module loaded?"
-            exit 1
-        fi
-        nvml_profile "$bin" "$args"
-        ;;
-    rocm)
-        # Validate ROCM availability.
-        if [[ "$(rocm_available)" == "1" ]]; then
-            print_error "rocm-smi is not available, is the module loaded?"
-            exit 1
-        fi
-        rocm_profile "$bin" "$args"
-        ;;
-    "") # Variable not set.
-        ;;
-    *)
-        echo "Invalid profiler: $profiler"
-        echo "Valid profilers: slurm|perf|papi"
-        exit 1
-        ;;
+            ;;
     esac
 }
 

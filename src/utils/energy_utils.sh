@@ -2,7 +2,6 @@
 # Utils related to energy and power.
 # ------------------------------------------------------------------------------
 
-
 # Convert a SLURM ConsumedEnergy string (e.g. "123.45K") to integer joules.
 convert_to_joules() {
     # Strip whitespace
@@ -23,9 +22,9 @@ convert_to_joules() {
     # Choose multiplier based on unit
     case "$unit" in
         "") mult=1 ;;
-        K)  mult=1000 ;;
-        M)  mult=1000000 ;;
-        G)  mult=1000000000 ;;
+        K) mult=1000 ;;
+        M) mult=1000000 ;;
+        G) mult=1000000000 ;;
         *)
             echo "Unknown unit: $unit" >&2
             return 1
