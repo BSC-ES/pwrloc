@@ -2,8 +2,6 @@
   <img src="https://raw.githubusercontent.com/bsc-es/pwrloc/main/docs/img/pwrloc_logo_rectangle.png" width="500">
 </h1><br>
 
-[//]: # (TODO: Add shields.)
-
 The Portable Power Locality (pwrloc) tool acts as an interface for energy profilers.
 There are multiple energy profiling backends available, with a different spatial and temporal resolution.
 What backend is best depends fully on your use case.

@@ -1,5 +1,18 @@
-# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
+# ------------------------------------------------------------------------------
+# Pre-commit configuration which does checks on every commit.
+# Instructions:
+#   - Install pre-commit through PIP, optionally in a virtual environment:
+#       - (optional)  python -m venv venv
+#       - (optional)  source venv/bin/activate
+#       - pip install pre-commit
+#   - Install the pre-commit hooks from the configuration
+#       - pre-commit install
+#   - Run pre-commit over all files once to initialize the hook environments:
+#       - pre-commit run --all-files
+# ------------------------------------------------------------------------------
+# See https://pre-commit.com for more information.
+# See https://pre-commit.com/hooks.html for more hooks.
+# ------------------------------------------------------------------------------
 exclude: |
   (?x)(
       ^.idea/|
@@ -7,51 +20,71 @@ exclude: |
   )
 default_stages: [pre-commit]
 repos:
-# Sync versions of dependencies within pre-commit.
-- repo: https://github.com/mxr/sync-pre-commit-deps
-  rev: v0.0.3
-  hooks:
-    - id: sync-pre-commit-deps
+  # Sync versions of dependencies within pre-commit.
+  - repo: https://github.com/mxr/sync-pre-commit-deps
+    rev: v0.0.3
+    hooks:
+      - id: sync-pre-commit-deps
 
-# Fix spelling mistakes in all code.
-- repo: https://github.com/codespell-project/codespell
-  rev: v2.4.1
-  hooks:
-  - id: codespell
+  # Detect accidentally committed secrets.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
 
-# Fix commong syntax issues.
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v6.0.0
-  hooks:
-    - id: check-added-large-files
-    - id: check-case-conflict
-    - id: check-executables-have-shebangs
-    - id: check-illegal-windows-names
-    - id: check-merge-conflict
-    - id: check-shebang-scripts-are-executable
-    - id: check-symlinks
-    - id: destroyed-symlinks
-    - id: check-yaml
-    - id: detect-private-key
-    - id: end-of-file-fixer
-    - id: mixed-line-ending
-      args:
-        - --fix=lf
-    - id: trailing-whitespace
-      args: [--markdown-linebreak-ext=md]
-      exclude: ^LICENSE
+  # Fix spelling mistakes in all code.
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+    - id: codespell
 
-# Check tabs and line endings.
-- repo: https://github.com/Lucas-C/pre-commit-hooks
-  rev: v1.5.5
-  hooks:
-    - id: remove-tabs
-    - id: forbid-tabs
-    - id: remove-crlf
-    - id: forbid-crlf
+  # Format Markdown files.
+  - repo: https://github.com/hukkin/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm
 
-# Format C files.
-- repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v21.1.2
-  hooks:
-    - id: clang-format
+  # Format shell scripts.
+  # - repo: https://github.com/scop/pre-commit-shfmt
+  #   rev: v3.12.0-2
+  #   hooks:
+  #     - id: shfmt
+
+  # Format C files.
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v21.1.2
+    hooks:
+      - id: clang-format
+
+  # Fix common syntax issues.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-illegal-windows-names
+      - id: check-merge-conflict
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: check-yaml
+      - id: detect-private-key
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args:
+          - --fix=lf
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^LICENSE
+
+  # Check tabs and line endings.
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.5
+    hooks:
+      - id: remove-tabs
+      - id: forbid-tabs
+      - id: remove-crlf
+      - id: forbid-crlf

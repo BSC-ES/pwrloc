@@ -1,6 +1,6 @@
 # How can I contribute?
 
-Thank you for wanting to contribute! :raised_hands: :sparkles:  
+Thank you for wanting to contribute! :raised_hands: :sparkles:\
 There are multiple ways to contribute to the project, ranging from coding tasks to maintaining and organizing the repository.
 
 ## Workflow for code and documentation changes
@@ -19,7 +19,7 @@ The `type` must be one of the following:
 The `issue_id` is the ID of the issue you created earlier.
 Lastly, `description` should be a very short description of what you're changing.
 
-For example, if you found a bug in parsing the user input and your issue has id `#1`, you should create a branch called ```bugfix/#1-parsing-user-input```.
+For example, if you found a bug in parsing the user input and your issue has id `#1`, you should create a branch called `bugfix/#1-parsing-user-input`.
 After you have fixed the bug, it's time to create a merge request and open it up for review.
 Make sure to merge into the `develop` branch and link the issue for closing upon merging the request.
 Someone will review your code changes, and after any potential changes, the branch can be merged into the develop branch.

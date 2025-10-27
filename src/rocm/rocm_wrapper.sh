@@ -4,8 +4,10 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-ROCMDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$ROCMDIR/../utils/utils.sh"
+ROCMDIR="$BASEDIR/rocm"
+. "$ROCMDIR/../utils/energy_utils.sh"
+. "$ROCMDIR/../utils/general_utils.sh"
+. "$ROCMDIR/../utils/print_utils.sh"
 
 # Returns 0 if papi is available, 1 otherwise.
 rocm_available() {
@@ -33,13 +35,14 @@ _get_rocm_power_measurement() {
 # Profile the provided binary with NVML.
 rocm_profile() {
     # Make sure rocm-smi is available.
-    if ! rocm_available 2>&1 > /dev/null; then
+    if ! rocm_available >/dev/null 2>&1; then
         print_error "rocm-smi is not available."
         return 1
     fi
 
     # Make sure that the cards are ready for power sampling.
-    local sample=$(rocm-smi --showpower 2>&1)
+    local sample
+    sample=$(rocm-smi --showpower 2>&1)
     if echo "$sample" | grep -q "ERROR:root:Driver not initialized"; then
         print_error "Failed to sample GPU power, are you on a compute node?"
         return 1
@@ -67,7 +70,7 @@ rocm_profile() {
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
         while read -r device power; do
-            watts=$(echo "$power")
+            watts="$power"
             energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
             energy[i]=$(echo "${energy[i]} + $energy_consumed" | bc -l)
             ((i++))

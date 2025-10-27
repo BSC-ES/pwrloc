@@ -4,8 +4,9 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-PAPIDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
-. "$PAPIDIR/../utils/utils.sh"
+PAPIDIR="$BASEDIR/papi"
+. "$PAPIDIR/../utils/general_utils.sh"
+. "$PAPIDIR/../utils/print_utils.sh"
 
 PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
 
@@ -15,11 +16,11 @@ papi_available() {
 
     # Check if the papi_avail command is available.
     if ! function_exists papi_avail; then
-        echo "1"
+        printf "1\n"
         return 1
     fi
 
-    echo "0"
+    printf "0\n"
     return 0
 }
 
@@ -30,18 +31,14 @@ _compile_papi_profiler() {
     fi
 
     # Compile the code.
-    cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" \
-        "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall
-
-    if [ ! $? -eq 0 ]; then
-        print_error "Error while compiling $(basename $PAPI_PROFILER), exiting.."
+    if ! cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall; then
+        print_error "Error while compiling $(basename "$PAPI_PROFILER"), exiting.."
         exit 1
     fi
 
-    chmod +x "$PAPI_PROFILER"
-
-    if [ ! $? -eq 0 ]; then
-        print_error "Error during 'chmod +x $(basename $PAPI_PROFILER)', exiting.."
+    # Make binary executable.
+    if ! chmod +x "$PAPI_PROFILER"; then
+        print_error "Error during 'chmod +x $(basename "$PAPI_PROFILER")', exiting.."
         exit 1
     fi
 }
@@ -55,37 +52,37 @@ _parse_papi_unit_to_joules() {
         local base="${BASH_REMATCH[1]}"
         local exponent="${BASH_REMATCH[2]}"
         # local exponent=$(echo "$unit" | sed -E "s/^${base}\^\((-?[0-9]+)\).*$/\1/")
-        echo "scale=20; $base^($exponent)" | bc -l | sed 's/^\./0./'
+        printf "scale=20; %s^(%s)\n" "$base" "$exponent" | bc -l | sed 's/^\./0./'
         return
     fi
 
     # Parse SI prefixes.
     case "$unit" in
-        pJ)     echo "0.000000000001"   ;;
-        nJ)     echo "0.000000001"      ;;
-        uJ|µJ)  echo "0.000001"         ;;
-        mJ)     echo "0.001"            ;;
-        J)      echo "1"                ;;
-        kJ)     echo "1000"             ;;
-        MJ)     echo "1000000"          ;;
-        GJ)     echo "1000000000"       ;;
-        *)      echo "Unrecognized unit: $unit" >&2 ;;
+    pJ)         printf "0.000000000001\n" ;;
+    nJ)         printf "0.000000001\n" ;;
+    uJ | µJ)    printf "0.000001\n" ;;
+    mJ)         printf "0.001\n" ;;
+    J)          printf "1\n" ;;
+    kJ)         printf "1000\n" ;;
+    MJ)         printf "1000000\n" ;;
+    GJ)         printf "1000000000\n" ;;
+    *)          printf "Unrecognized unit: %s\n" "$unit" >&2 ;;
     esac
 }
 
 # Print papi event information depending on the mode given.
 _print_papi_event() {
-    local mode=$1
-    local event=$2
-    local unit=$3
+    local mode="$1"
+    local event="$2"
+    local unit="$3"
 
     # Print found values.
     if [ "$mode" = "events" ]; then
-        echo "$event"
+        printf "%s\n" "$event"
     elif [ "$mode" = "units" ]; then
-        echo "$unit"
+        ecprintf "%s\n"ho "$unit"
     else
-        echo "$event : $unit"
+        printf "%s : %s\n" "$event" "$unit"
     fi
 }
 
@@ -114,7 +111,7 @@ _parse_papi_native_avail() {
             # Exclude any UNITS events.
             if [[ ! "$line" =~ ^\|[[:space:]]*(cray_rapl:::UNITS|cray_pm:::UNITS) ]]; then
                 # Extract the event name.
-                event_name=$(echo "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
+                event_name=$(printf "%s\n" "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
                 # Reset values for parsing this event.
                 in_event=1
@@ -130,9 +127,9 @@ _parse_papi_native_avail() {
             if [[ "$line" =~ ^\|[[:space:]]*(:[a-zA-Z0-9_]+=[^[:space:]]+) ]]; then
                 mod="${BASH_REMATCH[1]}"
                 case "$mod" in
-                    # Skip known modifiers that do not make sense to alter.
-                    :period=*|:freq=*|:excl=*|:pinned=*) ;;
-                    *) modifiers+=("$mod") ;;
+                # Skip known modifiers that do not make sense to alter.
+                :period=* | :freq=* | :excl=* | :pinned=*) ;;
+                *) modifiers+=("$mod") ;;
                 esac
             fi
 
@@ -165,7 +162,7 @@ _parse_papi_native_avail() {
 # Parse papi_native_avail for RAPL related events and their unit scalars.
 _get_papi_native_avail() {
     # Make sure papi_native_avail is available.
-    if ! papi_available > /dev/null 2>&1; then
+    if ! papi_available >/dev/null 2>&1; then
         print_error "Cannot load PAPI components, is PAPI loaded?"
         return
     fi
@@ -188,25 +185,27 @@ _get_papi_native_avail() {
 
 # Return the set of energy events supported by this system.
 papi_events() {
-    local events=$(_get_papi_native_avail "events")
+    local events
+    events=$(_get_papi_native_avail "events")
     if [ -z "$events" ]; then
-        echo "NO EVENTS AVAILABLE"
+        printf "NO EVENTS AVAILABLE\n"
     else
-        echo "$events"
+        printf "%s\n" "$events"
     fi
 }
 
 # Profile the provided binary with PAPI counters.
 papi_profile() {
     # Make sure PAPI is available.
-    if ! papi_available 2>&1 > /dev/null; then
+    if ! papi_available >/dev/null 2>&1; then
         print_error "PAPI is not available."
         return
     fi
 
     # Get events and units.
-    local events=$(_get_papi_native_avail "events")
-    local units=$(_get_papi_native_avail "units")
+    local events units
+    events=$(_get_papi_native_avail "events")
+    units=$(_get_papi_native_avail "units")
 
     # Throw warning if there are no supported events.
     if [ -z "$events" ]; then
@@ -223,5 +222,5 @@ papi_profile() {
 
     # Profile binary with supported events.
     verbose_echo print_into "Executing profiler"
-    "$PAPI_PROFILER" "$events" "$units" $@
+    "$PAPI_PROFILER" "$events" "$units" "$@"
 }

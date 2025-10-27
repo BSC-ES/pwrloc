@@ -6,10 +6,10 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
+BASEDIR=$(cd "$(dirname -- "$0")" >/dev/null 2>&1 && pwd)
 
 # Import functions from utils and the tool wrappers.
-. "$BASEDIR/utils/utils.sh"
+. "$BASEDIR/utils/print_utils.sh"
 . "$BASEDIR/slurm/slurm_wrapper.sh"
 . "$BASEDIR/perf/perf_wrapper.sh"
 . "$BASEDIR/papi/papi_wrapper.sh"
@@ -18,7 +18,7 @@ BASEDIR=$(cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd)
 
 # Show how to use this program.
 show_help() {
-    cat << EOF
+    cat <<EOF
 Usage: $(basename "$0") [-l] [-p profiler] [-v] [--] [bin] [args]
 
 Options:
@@ -55,49 +55,54 @@ show_setup() {
 # Show info on the availability and setup of the supported profilers.
 show_profilers() {
     # Fetch and print SLURM variables.
-    local slurm_avail=$(slurm_available)
-    local slurm_ptype=$(slurm_profiler_type)
-    local slurm_pfreq=$(slurm_profiler_freq)
-    echo -e "========== SLURM =========="
-    echo "slurm_avail: $(bool_to_text $slurm_avail)"
-    echo "slurm_ptype: $slurm_ptype"
-    echo -e "slurm_pfreq: $slurm_pfreq\n"
+    local slurm_avail slurm_ptype slurm_pfreq
+    slurm_avail=$(slurm_available)
+    if [ "$slurm_avail" -eq "0" ]; then
+        slurm_ptype=$(slurm_profiler_type)
+        slurm_pfreq=$(slurm_profiler_freq)
+    fi
+    printf "========== SLURM ==========\n"
+    printf "slurm_avail: %s\n" "$(bool_to_text "$slurm_avail")"
+    printf "slurm_ptype: %s\n" "$slurm_ptype"
+    printf "slurm_pfreq: %s\n\n" "$slurm_pfreq"
 
     # Fetch and print PERF variables.
-    local perf_avail=$(perf_available)
-    local perf_events=$(perf_events)
-    echo -e "========== PERF ==========="
-    echo "perf_avail: $(bool_to_text $perf_avail)"
-    echo "perf_events:"
-    echo "$perf_events" | awk '{print "\t" $0}'
-    echo ""
+    local perf_avail perf_events
+    perf_avail=$(perf_available)
+    perf_events=$(perf_events)
+    printf "========== PERF ===========\n"
+    printf "perf_avail: %s\n" "$(bool_to_text "$perf_avail")"
+    printf "%s\n" "perf_events:"
+    printf "%s\n" "$perf_events" | awk '{print "\t" $0}'
+    printf "\n"
 
     # Fetch and print PAPI variables.
-    local papi_avail=$(papi_available)
-    local papi_events=""
-    if [ $papi_avail -eq 0 ]; then
-        local papi_events=$(papi_events)
+    local papi_avail papi_found_events
+    papi_avail=$(papi_available)
+    papi_found_events=""
+    if [ "$papi_avail" -eq 0 ]; then
+        papi_found_events=$(papi_events)
     fi
 
-    echo -e "========== PAPI ==========="
-    echo "papi_avail: $(bool_to_text "$papi_avail")"
-    if [ $papi_avail -eq 0 ]; then
-        echo "papi_events:"
-        echo "$papi_events" | awk '{print "\t" $0}'
+    printf "========== PAPI ===========\n"
+    printf "%s\n" "papi_avail: $(bool_to_text "$papi_avail")"
+    if [ "$papi_avail" -eq 0 ]; then
+        printf "papi_events:\n"
+        printf "%s\n" "$papi_found_events" | awk '{print "\t" $0}'
     fi
-    echo ""
+    printf "\n"
 
     # Fetch and print NVML variables.
-    local nvml_avail=$(nvml_available)
-    echo -e "========== NVML ==========="
-    echo "nvml_avail: $(bool_to_text "$nvml_avail")"
-    echo ""
+    local nvml_avail
+    nvml_avail=$(nvml_available)
+    printf "%s\n" "========== NVML ==========="
+    printf "nvml_avail: %s\n\n" "$(bool_to_text "$nvml_avail")"
 
     # Fetch and print NVML variables.
-    local rocm_avail=$(rocm_available)
-    echo -e "========== ROCM ==========="
-    echo "rocm_avail: $(bool_to_text "$rocm_avail")"
-    echo ""
+    local rocm_avail
+    rocm_avail=$(rocm_available)
+    printf "%s\n" "========== ROCM ==========="
+    printf "rocm_avail: %s\n\n" "$(bool_to_text "$rocm_avail")"
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -113,25 +118,40 @@ main() {
     # Parse options.
     while getopts ":p:lvh" opt; do
         case "$opt" in
-            p) profiler="$OPTARG" ;;
-            l) show_profilers; exit 1 ;;
-            v) export VERBOSE=1 ;;
-            h) show_help; exit 0 ;;
-            :) echo "Option -$OPTARG requires an argument." >&2; exit 1 ;;
-            \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+        p) profiler="$OPTARG" ;;
+        l)
+            show_profilers
+            exit 1
+            ;;
+        v) export VERBOSE=1 ;;
+        h)
+            show_help
+            exit 0
+            ;;
+        :)
+            echo "Option -$OPTARG requires an argument." >&2
+            exit 1
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
         esac
     done
     shift $((OPTIND - 1))
 
     # Parse binary and arguments to profile, if profiler is set.
     if [ -n "$1" ]; then
-        local bin="$1"
+        local bin
+        bin="$1"
         shift
-        local args="$@"
+        local args
+        args="$@"  # TODO: Transform into array!
     elif [ -n "$profiler" ]; then
         # Check if a job id was passed as dependency for SLURM profiling.
         if [ "$profiler" == "slurm" ]; then
-            local bin=$(echo "$SLURM_JOB_DEPENDENCY" | awk -F':' '{print $2}')
+            local bin
+            bin=$(echo "$SLURM_JOB_DEPENDENCY" | awk -F':' '{print $2}')
 
             if [ -z "$bin" ]; then
                 print_error "Error: Missing jobid to profile." >&2
@@ -150,53 +170,53 @@ main() {
 
     # Validate the profiler and profile the application afterwards.
     case "$profiler" in
-        slurm)
-            # Validate SLURM availability.
-            if [[ "$(slurm_available)" == "1" ]]; then
-                print_error "SLURM energy accounting is not available."
-                exit 1
-            fi
-            slurm_profile "$bin"
-            ;;
-        perf)
-            # Validate PERF availability.
-            if [[ "$(perf_available)" == "1" ]]; then
-                print_error "Perf is not available."
-                exit 1
-            fi
-            perf_profile "$bin" "$args"
-            ;;
-        papi)
-            # Validate PAPI availability.
-            if [[ "$(papi_available)" == "1" ]]; then
-                print_error "PAPI is not available, is the module loaded?"
-                exit 1
-            fi
-            papi_profile "$bin" "$args"
-            ;;
-        nvml)
-            # Validate NVML availability.
-            if [[ "$(nvml_available)" == "1" ]]; then
-                print_error "nvidia-smi is not available, is the module loaded?"
-                exit 1
-            fi
-            nvml_profile "$bin" "$args"
-            ;;
-        rocm)
-            # Validate ROCM availability.
-            if [[ "$(rocm_available)" == "1" ]]; then
-                print_error "rocm-smi is not available, is the module loaded?"
-                exit 1
-            fi
-            rocm_profile "$bin" "$args"
-            ;;
-        "") # Variable not set.
-            ;;
-        *)
-            echo "Invalid profiler: $profiler"
-            echo "Valid profilers: slurm|perf|papi"
+    slurm)
+        # Validate SLURM availability.
+        if [[ "$(slurm_available)" == "1" ]]; then
+            print_error "SLURM energy accounting is not available."
             exit 1
-            ;;
+        fi
+        slurm_profile "$bin"
+        ;;
+    perf)
+        # Validate PERF availability.
+        if [[ "$(perf_available)" == "1" ]]; then
+            print_error "Perf is not available."
+            exit 1
+        fi
+        perf_profile "$bin" "$args"
+        ;;
+    papi)
+        # Validate PAPI availability.
+        if [[ "$(papi_available)" == "1" ]]; then
+            print_error "PAPI is not available, is the module loaded?"
+            exit 1
+        fi
+        papi_profile "$bin" "$args"
+        ;;
+    nvml)
+        # Validate NVML availability.
+        if [[ "$(nvml_available)" == "1" ]]; then
+            print_error "nvidia-smi is not available, is the module loaded?"
+            exit 1
+        fi
+        nvml_profile "$bin" "$args"
+        ;;
+    rocm)
+        # Validate ROCM availability.
+        if [[ "$(rocm_available)" == "1" ]]; then
+            print_error "rocm-smi is not available, is the module loaded?"
+            exit 1
+        fi
+        rocm_profile "$bin" "$args"
+        ;;
+    "") # Variable not set.
+        ;;
+    *)
+        echo "Invalid profiler: $profiler"
+        echo "Valid profilers: slurm|perf|papi"
+        exit 1
+        ;;
     esac
 }
 
