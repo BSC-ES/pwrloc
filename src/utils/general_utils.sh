@@ -1,5 +1,7 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This file contains common utils to be used.
+# TODO: Write tests for this entire file!
 # ------------------------------------------------------------------------------
 
 # Checks if the passed function exists.
@@ -13,7 +15,7 @@ is_numerical() {
     case "$1" in
         # Reject empty strings or invalid characters.
         *[!0-9.+-]* | '') return 1 ;;
-        # March floats.
+        # Match floats.
         *.*)
             # Valid patterns:
             #   [+|-]digits.digits
@@ -27,19 +29,20 @@ is_numerical() {
         # Match ints.
         *)
             case "$1" in
-                [+-]*[0-9]*) return 0 ;;
+                [+-][0-9]* | [0-9]*) return 0 ;;
                 *) return 1 ;;
             esac
             ;;
     esac
 }
 
-# Check if given string consists of only alphanumeric characters.
+# Check if given string consists of only alphanumeric characters, including:
+# '_', and '/'.
 #   Usage:  is_alphanumerical <input>
 is_alphanumerical() {
     case "$1" in
         # Reject empty strings or invalid characters.
-        *[!A-Za-z0-9_\/]* | '') return 1 ;;
+        *[!A-Za-z0-9_/\-]* | '') return 1 ;;
         *) return 0 ;;
     esac
 }
@@ -63,9 +66,6 @@ is_scientific() {
 
 # Get the base and exponent of a scientific notation.
 split_scientific_notation() {
-    local base
-    local exp
-
     # Get and return base and exponent.
     case $1 in
         # Detect caret-style notation.

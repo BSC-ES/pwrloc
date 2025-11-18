@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This application is a wrapper for listing and using energy profilers available
 # to the system.
@@ -6,15 +6,17 @@
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-BASEDIR=$(cd "$(dirname -- "$0")" >/dev/null 2>&1 && pwd)
+SRCDIR=$(cd "$(dirname -- "$0")" >/dev/null 2>&1 && pwd)
 
 # Import functions from utils and the tool wrappers.
-. "$BASEDIR/utils/print_utils.sh"
-. "$BASEDIR/slurm/slurm_wrapper.sh"
-. "$BASEDIR/perf/perf_wrapper.sh"
-. "$BASEDIR/papi/papi_wrapper.sh"
-. "$BASEDIR/nvml/nvml_wrapper.sh"
-. "$BASEDIR/rocm/rocm_wrapper.sh"
+. "$SRCDIR/nvml/nvml_wrapper.sh"
+. "$SRCDIR/papi/papi_wrapper.sh"
+. "$SRCDIR/perf/perf_wrapper.sh"
+. "$SRCDIR/rocm/rocm_wrapper.sh"
+. "$SRCDIR/slurm/slurm_wrapper.sh"
+. "$SRCDIR/../tests/run_tests.sh"
+. "$SRCDIR/utils/print_utils.sh"
+
 
 # Show how to use this program.
 show_help() {
@@ -22,10 +24,11 @@ show_help() {
 Usage: $(basename "$0") [-l] [-p profiler] [-v] [--] [bin] [args]
 
 Options:
-  -l            List availability of the supported profilers
-  -p profiler   Profile using provided profiler
-  -v            Enable verbose mode
-  -h            Show this help message and exit
+  -h            Show this help message and exit.
+  -l            List availability of the supported profilers.
+  -p profiler   Profile using provided profiler.
+  -t            Run test suite.
+  -v            Enable verbose mode.
 
 Application:
   [bin] [args]  Application (with arguments) to profile.
@@ -40,22 +43,9 @@ Example:
 EOF
 }
 
-# Show the setup after parsing the arguments.
-show_setup() {
-    # Show setup in case of a verbose execution.
-    verbose_echo "========== SETUP =========="
-    verbose_echo "profiler = $profiler"
-    verbose_echo "list_profilers = $list_profilers"
-    verbose_echo "VERBOSE = $VERBOSE"
-    verbose_echo "bin = $bin"
-    verbose_echo "args = $args"
-    verbose_echo "======== END SETUP ========\n"
-}
-
 # Show info on the availability and setup of the supported profilers.
 show_profilers() {
     # Fetch and print SLURM variables.
-    local slurm_avail slurm_ptype slurm_pfreq
     slurm_avail=$(slurm_available)
     if [ "$slurm_avail" -eq "0" ]; then
         slurm_ptype=$(slurm_profiler_type)
@@ -67,7 +57,6 @@ show_profilers() {
     printf "slurm_pfreq: %s\n\n" "$slurm_pfreq"
 
     # Fetch and print PERF variables.
-    local perf_avail perf_events
     perf_avail=$(perf_available)
     perf_events=$(perf_events)
     printf "========== PERF ===========\n"
@@ -77,7 +66,6 @@ show_profilers() {
     printf "\n"
 
     # Fetch and print PAPI variables.
-    local papi_avail papi_found_events
     papi_avail=$(papi_available)
     papi_found_events=""
     if [ "$papi_avail" -eq 0 ]; then
@@ -93,16 +81,24 @@ show_profilers() {
     printf "\n"
 
     # Fetch and print NVML variables.
-    local nvml_avail
     nvml_avail=$(nvml_available)
     printf "%s\n" "========== NVML ==========="
     printf "nvml_avail: %s\n\n" "$(bool_to_text "$nvml_avail")"
 
     # Fetch and print NVML variables.
-    local rocm_avail
     rocm_avail=$(rocm_available)
     printf "%s\n" "========== ROCM ==========="
     printf "rocm_avail: %s\n\n" "$(bool_to_text "$rocm_avail")"
+}
+
+# Show the setup after parsing the arguments.
+show_setup() {
+    # Show setup in case of a verbose execution.
+    verbose_echo "========== SETUP =========="
+    verbose_echo "profiler = $profiler"
+    verbose_echo "bin = $bin"
+    verbose_echo "args = $args"
+    verbose_echo "======== END SETUP ========\n"
 }
 
 # Main entry point for wrapper, containing argument parser.
@@ -111,23 +107,26 @@ main() {
     [ $# -eq 0 ] && show_help && exit 1
 
     # Default values.
-    local profiler=""
-    local list_profilers=0
     export VERBOSE=0
+    profiler=""
 
     # Parse options.
-    while getopts ":p:lvh" opt; do
+    while getopts ":p:hltv" opt; do
         case "$opt" in
-            p) profiler="$OPTARG" ;;
-            l)
-                show_profilers
-                exit 1
-                ;;
-            v) export VERBOSE=1 ;;
             h)
                 show_help
                 exit 0
                 ;;
+            l)
+                show_profilers
+                exit 0
+                ;;
+            p) profiler="$OPTARG" ;;
+            t)
+                run_test_suite
+                exit 0
+                ;;
+            v) export VERBOSE=1 ;;
             :)
                 echo "Option -$OPTARG requires an argument." >&2
                 exit 1
@@ -142,15 +141,12 @@ main() {
 
     # Parse binary and arguments to profile, if profiler is set.
     if [ -n "$1" ]; then
-        local bin
         bin="$1"
         shift
-        local args
-        args="$@" # TODO: Transform into array!
+        args="$*"
     elif [ -n "$profiler" ]; then
         # Check if a job id was passed as dependency for SLURM profiling.
-        if [ "$profiler" == "slurm" ]; then
-            local bin
+        if [ "$profiler" = "slurm" ]; then
             bin=$(echo "$SLURM_JOB_DEPENDENCY" | awk -F':' '{print $2}')
 
             if [ -z "$bin" ]; then
@@ -172,7 +168,8 @@ main() {
     case "$profiler" in
         slurm)
             # Validate SLURM availability.
-            if [[ "$(slurm_available)" == "1" ]]; then
+            # TODO: Test if this new check works!
+            if [ "$(slurm_available)" = "1" ]; then
                 print_error "SLURM energy accounting is not available."
                 exit 1
             fi
@@ -180,7 +177,7 @@ main() {
             ;;
         perf)
             # Validate PERF availability.
-            if [[ "$(perf_available)" == "1" ]]; then
+            if [ "$(perf_available)" = "1" ]; then
                 print_error "Perf is not available."
                 exit 1
             fi
@@ -188,7 +185,7 @@ main() {
             ;;
         papi)
             # Validate PAPI availability.
-            if [[ "$(papi_available)" == "1" ]]; then
+            if [ "$(papi_available)" = "1" ]; then
                 print_error "PAPI is not available, is the module loaded?"
                 exit 1
             fi
@@ -196,7 +193,7 @@ main() {
             ;;
         nvml)
             # Validate NVML availability.
-            if [[ "$(nvml_available)" == "1" ]]; then
+            if [ "$(nvml_available)" = "1" ]; then
                 print_error "nvidia-smi is not available, is the module loaded?"
                 exit 1
             fi
@@ -204,7 +201,7 @@ main() {
             ;;
         rocm)
             # Validate ROCM availability.
-            if [[ "$(rocm_available)" == "1" ]]; then
+            if [ "$(rocm_available)" = "1" ]; then
                 print_error "rocm-smi is not available, is the module loaded?"
                 exit 1
             fi
@@ -214,7 +211,7 @@ main() {
             ;;
         *)
             echo "Invalid profiler: $profiler"
-            echo "Valid profilers: slurm|perf|papi"
+            echo "Valid profilers: slurm|perf|papi|nvml|rocm"
             exit 1
             ;;
     esac

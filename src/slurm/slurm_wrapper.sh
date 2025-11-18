@@ -1,10 +1,11 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the SLURM energy
 # accounting plugin.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-SLURMDIR="$BASEDIR/slurm"
+SLURMDIR="$SRCDIR/slurm"
 . "$SLURMDIR/../utils/energy_utils.sh"
 . "$SLURMDIR/../utils/general_utils.sh"
 . "$SLURMDIR/../utils/print_utils.sh"
@@ -12,8 +13,6 @@ SLURMDIR="$BASEDIR/slurm"
 
 # Returns the value of a given parameter from the SLURM config file.
 get_conf_value() {
-    local line value
-
     # Get value from config.
     line=$(scontrol show config | grep "$1")
 
@@ -24,7 +23,6 @@ get_conf_value() {
 
 # Returns the energy gatherer type.
 slurm_profiler_type() {
-    local type
     type=$(get_conf_value AcctGatherEnergyType)
     echo "${type#*/}"
 }
@@ -32,7 +30,6 @@ slurm_profiler_type() {
 # Returns the sample frequency.
 slurm_profiler_freq() {
     # Try to get frequency for energy specifically.
-    local p_freq
     p_freq=$(get_conf_value JobAcctGatherFrequency)
 
     if [ -n "$p_freq" ]; then
@@ -64,7 +61,6 @@ slurm_available() {
     fi
 
     # Check if the gather type and frequency are non-zero.
-    local p_type p_freq
     p_type=$(slurm_profiler_type)
     p_freq=$(slurm_profiler_freq)
 
@@ -80,7 +76,6 @@ slurm_available() {
 
 # Get the current energy consumption of a given job.
 _slurm_get_energy_consumed() {
-    local jobid values verbose_values max_joules value_joules max_human
     jobid="$1"
     values=$(sacct -j "$jobid" --format=ConsumedEnergy -nP)
 
@@ -99,7 +94,9 @@ _slurm_get_energy_consumed() {
         if [ "$value_joules" -gt "$max_joules" ]; then
             max_joules=$value_joules
         fi
-    done <<<"$values"
+    done <<EOF
+$values
+EOF
 
     # Convert maximum to kilojoules and print if verbose.
     max_human=$(convert_from_joules "$max_joules")
@@ -110,7 +107,7 @@ _slurm_get_energy_consumed() {
 # Profile given application with SLURM and return the total consumed energy.
 slurm_profile() {
     verbose_echo print_info "Profiling using SLURM.."
-    local jobid="$1"
+    jobid="$1"
 
     # Check if we are inside a running SLURM job.
     if [ -z "$jobid" ]; then

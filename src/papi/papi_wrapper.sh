@@ -1,14 +1,17 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the PAPI energy
 # profiling options.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-PAPIDIR="$BASEDIR/papi"
+PAPIDIR="$SRCDIR/papi"
 . "$PAPIDIR/../utils/general_utils.sh"
 . "$PAPIDIR/../utils/print_utils.sh"
+. "$PAPIDIR/../utils/stack_utils.sh"
 
 PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
+
 
 # Returns 0 if papi is available, 1 otherwise.
 papi_available() {
@@ -45,16 +48,44 @@ _compile_papi_profiler() {
 
 # Convert a unit string into a floating-point scaling factor to Joules
 _parse_papi_unit_to_joules() {
-    local unit="$1"
+    unit="$1"
 
-    # Parse scientific notation like "2^-32 Joules"
-    if [[ "$unit" =~ ^([0-9.]+)\^(-?[0-9]+)$ ]]; then
-        local base="${BASH_REMATCH[1]}"
-        local exponent="${BASH_REMATCH[2]}"
-        # local exponent=$(echo "$unit" | sed -E "s/^${base}\^\((-?[0-9]+)\).*$/\1/")
-        printf "scale=20; %s^(%s)\n" "$base" "$exponent" | bc -l | sed 's/^\./0./'
+    case $unit in
+    *"^"*)
+        # Split "base^exponent"
+        base=$(printf '%s\n' "$unit" | sed 's/\^.*//')
+        exponent=$(printf '%s\n' "$unit" | sed 's/.*\^//')
+
+        # Validate extraction (digits, decimal, optional - sign)
+        case $base in
+            ''|*[!0-9.]*)
+                return 1
+                ;;
+        esac
+        case $exponent in
+            ''|*[!0-9-]*|*--*)
+                return 1
+                ;;
+        esac
+
+        # Compute the value using bc
+        printf "scale=20; %s^(%s)\n" "$base" "$exponent" |
+            bc -l |
+            sed 's/^\./0./'
+
         return
-    fi
+        ;;
+    esac
+
+    # # Parse scientific notation like "2^-32 Joules"
+    # # TODO: Rework [[]] and BASH_REMATCH to be POSIX compliant.
+    # if [[ "$unit" =~ ^([0-9.]+)\^(-?[0-9]+)$ ]]; then
+    #     base="${BASH_REMATCH[1]}"
+    #     exponent="${BASH_REMATCH[2]}"
+    #     # local exponent=$(echo "$unit" | sed -E "s/^${base}\^\((-?[0-9]+)\).*$/\1/")
+    #     printf "scale=20; %s^(%s)\n" "$base" "$exponent" | bc -l | sed 's/^\./0./'
+    #     return
+    # fi
 
     # Parse SI prefixes.
     case "$unit" in
@@ -72,9 +103,9 @@ _parse_papi_unit_to_joules() {
 
 # Print papi event information depending on the mode given.
 _print_papi_event() {
-    local mode="$1"
-    local event="$2"
-    local unit="$3"
+    mode="$1"
+    event="$2"
+    unit="$3"
 
     # Print found values.
     if [ "$mode" = "events" ]; then
@@ -86,73 +117,153 @@ _print_papi_event() {
     fi
 }
 
+# Detect the start of a PAPI event block with energy counter information.
+_detect_papi_start_event_block() {
+    # Reject UNITS events.
+    case $1 in
+        '|'[[:space:]]*cray_rapl:::UNITS* | \
+        '|'[[:space:]]*cray_pm:::UNITS* )
+            return 1
+            ;;
+    esac
+
+    # Accept RAPL/CRAY_PM energy events.
+    case $1 in
+        '|'[[:space:]]*rapl::* | \
+        '|'[[:space:]]*cray_rapl::* | \
+        '|'[[:space:]]*cray_pm:::PM_ENERGY:* )
+            return 0
+            ;;
+    esac
+
+    # Return false in any other case.
+    return 1
+}
+
+# Detect a modifier line inside a PAPI event block, like :cpu=0 or :freq=2000.
+_detect_papi_modifier_line() {
+    case $1 in
+        '|'[[:space:]]*:*=* )
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
+# Detect a unit line inside a PAPI event block in the style of MN5 and LUMI.
+_detect_unit_line() {
+    case $1 in
+        *[Uu]nit* )
+            # Must contain at least one of these separators:
+            case $1 in
+                *:[[:space:]]*|*is[[:space:]]* ) return 0 ;;
+            esac
+            ;;
+    esac
+
+    return 1
+}
+
+# Detect the end of a PAPI event block.
+_detect_event_block_end() {
+    case $1 in
+        # One or more '-' or '=' only
+        [-=]* )
+            # But it must not be empty
+            [ -n "$1" ] && return 0
+            ;;
+    esac
+
+    return 1
+}
+
 # Parse the output of papi_native_avail for energy related events and units.
 _parse_papi_native_avail() {
     # Support for 3 different output modes:
     #   - "events": Only print the event names.
     #   - "units":  Only print the units.
     #   - "both":   Print both names and units separated by " : ".
-    local mode="$1"
+    mode="$1"
 
     # Get events from user.
-    local events="$2"
+    events="$2"
 
     # Locals for parsing each event.
-    local in_event=0
-    local event_name=""
-    local unit=""
-    local modifiers=()
-    local mod=""
+    in_event=0
+    event_name=""
+    unit=""
 
     # Loop over all lines of the output.
     echo "$events" | while IFS= read -r line; do
-        # Detect the start of a rapl or cray_pm event block.
-        if [[ "$line" =~ ^\|[[:space:]]*(rapl::|cray_rapl::|cray_pm:::PM_ENERGY:)[^[:space:]]+ ]]; then
-            # Exclude any UNITS events.
-            if [[ ! "$line" =~ ^\|[[:space:]]*(cray_rapl:::UNITS|cray_pm:::UNITS) ]]; then
-                # Extract the event name.
-                event_name=$(printf "%s\n" "$line" | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
+        # Detect the start of a rapl or cray_pm event block, which is not a
+        # UNITS event.
+        if _detect_papi_start_event_block "$line"; then
+            # Extract the event name.
+            event_name=$(printf "%s\n" "$line" \
+                | awk -F'|' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}')
 
-                # Reset values for parsing this event.
-                in_event=1
-                modifiers=()
-                unit=""
-                continue
-            fi
+            # Reset values for parsing this event.
+            in_event=1
+            stack_create "modifiers"
+            unit=""
+            continue
         fi
 
         # Parse consecutive lines after the event name line.
-        if [[ $in_event -eq 1 ]]; then
+        if [ $in_event -eq 1 ]; then
             # Extract modifiers, like :cpu=*.
-            if [[ "$line" =~ ^\|[[:space:]]*(:[a-zA-Z0-9_]+=[^[:space:]]+) ]]; then
-                mod="${BASH_REMATCH[1]}"
-                case "$mod" in
+            if _detect_papi_modifier_line "$line"; then
+                # Extract the modifier name, e.g. "cpu"
+                mod=$(printf '%s\n' "$line" \
+                    | sed -n 's/^|[[:space:]]*\(:[^[:space:]]*\).*$/\1/p')
+
+                # If extraction failed, skip
+                [ -z "$mod" ] && continue
+
                 # Skip known modifiers that do not make sense to alter.
-                :period=* | :freq=* | :excl=* | :pinned=*) ;;
-                *) modifiers+=("$mod") ;;
+                case $mod in
+                    :period=* | :freq=* | :excl=* | :pinned=* )
+                        ;;
+                    *)
+                        # Store parsed modifiers on a stack.
+                        stack_push "modifiers" "$mod"
+                        ;;
                 esac
             fi
 
             # Extract units in MN5 and LUMI format.
-            if [[ "$line" =~ Units?[[:space:]]*(:|is)[[:space:]]*([0-9]+|\-?[0-9]+|2\^[\-0-9]+|[a-zA-Z]+) ]]; then
-                unit=$(_parse_papi_unit_to_joules "${BASH_REMATCH[2]}")
+            if _detect_unit_line "$line"; then
+                # Extract the unit token after ":" or "is".
+                # TODO: Find better formatting for this sed monstrosity.
+                unit=$(printf '%s\n' "$line" \
+                    | sed -n '
+                        # Normalize for multiple spaces.
+                        s/[[:space:]]\+/ /g
+                        # Capture the value after "Units:" or "Units is".
+                        s/.*[Uu]nits\{0,1\}[[:space:]]*\(:\|is\)[[:space:]]*\([0-9]\+\|-*[0-9]\+\|2\^\-*[0-9]\+\|[A-Za-z]\+\).*/\2/p
+                    ')
+
+                [ -n "$unit" ] && unit=$(_parse_papi_unit_to_joules "$unit")
             fi
 
             # Detect the end of the event block.
-            if [[ "$line" =~ ^[-=]+$ ]]; then
+            if is_event_block_end "$line"; then
                 # Default units to 1 if none was detected.
                 [ -z "$unit" ] && unit=1
 
-                # Take combinations of the event_name and modifiers, if any exist.
-                if [ ${#modifiers[@]} -eq 0 ]; then
+                # If no modifiers were collected, provide event as-is.
+                if [ "$(stack_len "modifiers")" -eq 0 ]; then
                     _print_papi_event "$mode" "$event_name" "$unit"
                 else
-                    for mod in "${modifiers[@]}"; do
-                        _print_papi_event "$mode" "$event_name$mod" "$unit"
+                    # Otherwise, take combinations of the event and modifiers.
+                    while [ "$(stack_len "modifiers")" -ne 0 ]; do
+                        mod=$(stack_pop "modifiers")
+                        _print_papi_event "$mode" "${event_name}${mod}" "$unit"
                     done
                 fi
 
-                # Reset event block detection.
+                # Reset event block detection state.
                 in_event=0
             fi
         fi
@@ -171,21 +282,28 @@ _get_papi_native_avail() {
     #   - "events": Only print the event names.
     #   - "units":  Only print the units.
     #   - "both":   Print both names and units separated by " : ".
-    local mode="$1"
+    mode="$1"
 
     # Fetch list of counters and units.
-    local components=("rapl" "cray_pm")
-    local events=""
+    stack_create "components"
+    stack_push "components" "rapl"
+    stack_push "components" "cray_pm"
+    events=""
 
-    for component in "${components[@]}"; do
+    while [ "$(stack_len "components")" -ne 0 ]; do
+        component=$(stack_pop "components")
         events=$(papi_native_avail -i "$component")
+
+        # Print the found counters and units to stdout.
         _parse_papi_native_avail "$mode" "$events"
     done
+
+    # Clean up.
+    stack_destroy "components"
 }
 
 # Return the set of energy events supported by this system.
 papi_events() {
-    local events
     events=$(_get_papi_native_avail "events")
     if [ -z "$events" ]; then
         printf "NO EVENTS AVAILABLE\n"
@@ -203,7 +321,6 @@ papi_profile() {
     fi
 
     # Get events and units.
-    local events units
     events=$(_get_papi_native_avail "events")
     units=$(_get_papi_native_avail "units")
 

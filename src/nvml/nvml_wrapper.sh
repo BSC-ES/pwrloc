@@ -1,14 +1,16 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the NVML energy
 # profiling for NVIDIA GPUs.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-NVMLDIR="$BASEDIR/nvml"
+NVMLDIR="$SRCDIR/nvml"
 . "$NVMLDIR/../utils/general_utils.sh"
 . "$NVMLDIR/../utils/print_utils.sh"
 
 NVML_PROFILER="$NVMLDIR/nvml_profiler.o"
+
 
 # Returns 0 if papi is available, 1 otherwise.
 nvml_available() {
@@ -52,9 +54,8 @@ nvml_profile() {
     fi
 
     # Check if the nvml.h library is found.
-    local nvml_header
     nvml_header=$(echo '#include <nvml.h>' | gcc -E -I/usr/local/cuda/include - >/dev/null && echo "Found" || echo "Not found")
-    if [ "$nvml_header" == "Not found" ]; then
+    if [ "$nvml_header" = "Not found" ]; then
         print_error "Cannot find nvml.h, is the required module loaded?"
         return 1
     fi

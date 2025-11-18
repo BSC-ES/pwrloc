@@ -1,12 +1,14 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the perf stat energy
 # events.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-PERFDIR="$BASEDIR/perf"
+PERFDIR="$SRCDIR/perf"
 . "$PERFDIR/../utils/general_utils.sh"
 . "$PERFDIR/../utils/print_utils.sh"
+
 
 # Returns 0 if perf is available, 1 otherwise.
 perf_available() {
@@ -29,10 +31,6 @@ _perf_get_energy_events() {
 
 # Returns the sample frequency.
 perf_events() {
-    local events
-    local errors
-    local tmpfile
-
     # Create a temp file for stderr.
     tmpfile=$(mktemp 2>/dev/null || echo "/tmp/catch.$$")
     events=$(_perf_get_energy_events 2>"$tmpfile")
@@ -54,15 +52,13 @@ perf_events() {
 
 # Get the consumed energy for this rank (which can be total execution).
 _get_energy_consumed() {
-    local events perf_stat_events perf_out energy
-
     # Get events.
     events=$(perf_events)
     perf_stat_events=$(echo "$events" | awk '{print " -e " $0}')
     perf_stat_events=$(echo "$perf_stat_events" | tr '\n' ' ')
 
     # Profile the binary with perf and store in stdout.
-    # TODO: What are $bin and $args doing here??? Variables??
+    # TODO: What are $bin and $args doing here??? Variables from pwrloc.sh??
     perf_out=$(perf stat -e "$perf_stat_events" -- "$bin" "$args" 2>&1)
 
     # Extract the energy values from the perf output.
@@ -82,7 +78,6 @@ _get_energy_consumed() {
 
 # Reads energy values from given file and prints them sanitized.
 _sanitize_energy_values() {
-    local energy_input
     energy_input=$(cat "$1")
     readarray -t energy_array <<<"$energy_input"
 
@@ -98,22 +93,22 @@ _sanitize_energy_values() {
 # Gather all collected results and delete the temporary directory.
 #   !! This function should only be called by rank 0. !!
 _gather_results() {
-    local tmp_dir="$1"
-    local num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
-    local file_count=0
+    tmp_dir="$1"
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+    file_count=0
 
     # Wait for all files to appear.
     while true; do
         file_count=$(find "$tmp_dir" -maxdepth 1 -type f | wc -l)
-        if ((file_count >= num_ranks)); then
+        if [ "$file_count" -ge "$num_ranks" ]; then
             break
         fi
         sleep 0.5
     done
 
     # Merge the energy logs into one, starting by own file.
-    local energy_total=($(_sanitize_energy_values "$tmp_dir/rank_0.out"))
-    local energy_input=()
+    energy_total=($(_sanitize_energy_values "$tmp_dir/rank_0.out"))
+    energy_input=()
 
     for ((i = 2; i <= num_ranks; i++)); do
         energy_input=($(_sanitize_energy_values "$tmp_dir/rank_$((i - 1)).out"))
@@ -133,16 +128,14 @@ perf_profile() {
     energy=$(_get_energy_consumed)
 
     # Get job and rank ID and write to output file.
-    local job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"r$RANDOM"}}}
-    local rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
-    local tmp_dir="tmp.$job"
+    job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"r$RANDOM"}}}
+    rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+    tmp_dir="tmp.$job"
     mkdir -p "$tmp_dir"
     printf "%s\n" "$energy" >"$tmp_dir/rank_$rank.out"
 
     # Only rank 0 combines the results.
     if [ "$rank" -eq "0" ]; then
-        local energy_total events event_array max_len
-
         # Wait for all result files, then gather values and remove the files.
         energy_total=($(_gather_results "$tmp_dir"))
 

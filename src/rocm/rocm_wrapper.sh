@@ -1,13 +1,15 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the ROCM energy
 # profiling module for AMD GPUs.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-ROCMDIR="$BASEDIR/rocm"
+ROCMDIR="$SRCDIR/rocm"
 . "$ROCMDIR/../utils/energy_utils.sh"
 . "$ROCMDIR/../utils/general_utils.sh"
 . "$ROCMDIR/../utils/print_utils.sh"
+
 
 # Returns 0 if papi is available, 1 otherwise.
 rocm_available() {
@@ -26,7 +28,7 @@ rocm_available() {
 # Get a ROCM power measurement for non-N/A cards.
 _get_rocm_power_measurement() {
     rocm-smi --showpower --csv | tail -n +2 | head -n -1 | while IFS=',' read -r device power; do
-        if [[ "$power" != "N/A"* ]]; then
+        if [ "$power" != "N/A"* ]; then
             echo "$device $power"
         fi
     done
@@ -41,7 +43,6 @@ rocm_profile() {
     fi
 
     # Make sure that the cards are ready for power sampling.
-    local sample
     sample=$(rocm-smi --showpower 2>&1)
     if echo "$sample" | grep -q "ERROR:root:Driver not initialized"; then
         print_error "Failed to sample GPU power, are you on a compute node?"
@@ -49,9 +50,10 @@ rocm_profile() {
     fi
 
     # Initialize arrays for trackig energy consumption.
-    local devices=()
-    local energy=()
-    local i=0
+    # TODO: Use POSIX arrays for devices and energy.
+    devices=()
+    energy=()
+    i=0
     while read -r device power; do
         devices[i]="$device"
         energy[i]=0
@@ -60,12 +62,12 @@ rocm_profile() {
 
     # Launch the application and store PID for tracking.
     "$@" &
-    local child_pid=$!
+    child_pid=$!
     verbose_echo print_info "Application PID: $child_pid"
 
     # Poll with a set frequency until the child process is finished.
-    local poll_time_s=0.2
-    local watts=0.0
+    poll_time_s=0.2
+    watts=0.0
 
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
@@ -81,7 +83,7 @@ rocm_profile() {
     done
 
     # Report energy consumption per GPU and in total
-    local total_energy=0.0
+    total_energy=0.0
     for i in "${!devices[@]}"; do
         echo -e "GPU ${devices[i]}:\t${energy[i]} J"
         total_energy=$(echo "$total_energy + ${energy[i]}" | bc -l)
