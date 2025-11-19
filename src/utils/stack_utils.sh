@@ -110,6 +110,7 @@ stack_push() {
 }
 
 # Deletes and exports the top stack value in $STACK_POP_RESULT.
+# NOTE: stack_pop cannot be used in subshells!
 #   Usage:    stack_pop <stack_name>
 stack_pop() {
     # Sanitize input.
@@ -226,7 +227,7 @@ stack_delete() {
     _i_stack_delete=$_idx_stack_delete
     while [ "$_i_stack_delete" -lt $((_len_stack_delete - 1)) ]; do
         _j_stack_delete=$((_i_stack_delete + 1))
-        eval "_val_stack_delete=\${$STACK_PREFIX${1}_\$_j_stack_delete}"
+        eval "_val_stack_delete=\${$STACK_PREFIX${1}_$_j_stack_delete}"
         eval "export $STACK_PREFIX${1}_$_i_stack_delete=\"\$_val_stack_delete\""
         _i_stack_delete=$((_i_stack_delete + 1))
     done

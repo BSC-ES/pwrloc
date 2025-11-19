@@ -170,15 +170,41 @@ test_stack_set() {
     # Check it has been properly overwritten.
     val=$(stack_get "stack" "1")
     if [ "$val" != "new2" ]; then
-        printf "The second value is incorrect: '%s' != 'new2'.\n" "$val" >&2
+        printf "The overwritten value is incorrect: '%s' != 'new2'.\n" "$val" >&2
         return 1
     fi
 }
 
 # Test stack_delete.
 test_stack_delete() {
-    # TODO: Implement!
-    printf ""
+    # Setup stack with 3 values.
+    stack_create "stack"
+    stack_push "stack" "val1"
+    stack_push "stack" "val2"
+    stack_push "stack" "val3"
+
+    # Make sure the starting length is correct.
+    if [ "$(stack_len "stack")" -ne 3 ]; then
+        printf "Created stack does not have length 3.\n" >&2
+        return 1
+    fi
+
+    # Make sure the 2nd value is correct.
+    val=$(stack_get "stack" "1")
+    if [ "$val" != "val2" ]; then
+        printf "The second value is incorrect: '%s' != val2.\n" "$val" >&2
+        return 1
+    fi
+
+    # Delete the 2nd value, making the 3rd value the 2nd value.
+    stack_delete "stack" "1"
+
+    # Check it has been properly overwritten.
+    val=$(stack_get "stack" "1")
+    if [ "$val" != "val3" ]; then
+        printf "The value is incorrect after delete: '%s' != 'val3'.\n" "$val" >&2
+        return 1
+    fi
 }
 
 # Test stack_foreach.
