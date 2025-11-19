@@ -110,6 +110,12 @@ test_stack_get() {
     printf ""
 }
 
+# Test stack_set.
+test_stack_set() {
+    # TODO: Implement!
+    printf ""
+}
+
 # Test stack_delete.
 test_stack_delete() {
     # TODO: Implement!

@@ -41,8 +41,8 @@ is_numerical() {
 #   Usage:  is_alphanumerical <input>
 is_alphanumerical() {
     case "$1" in
-        # Reject empty strings or invalid characters.
-        *[!A-Za-z0-9_/\-]* | '') return 1 ;;
+        # Reject characters not in whitelist and empty strings.
+        *[!A-Za-z0-9_/\-:=]* | '') return 1 ;;
         *) return 0 ;;
     esac
 }
@@ -91,4 +91,14 @@ split_scientific_notation() {
             return 1
             ;;
     esac
+}
+
+# Zip the items of two newline-separated strings which are of the same length.
+#   Usage:      zip_strings <list_1> <list_2>
+zip_strings() {
+    paste -d ' ' - <<EOF1 <<EOF2
+$1
+EOF1
+$2
+EOF2
 }

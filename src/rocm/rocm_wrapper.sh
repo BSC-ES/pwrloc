@@ -27,10 +27,15 @@ rocm_available() {
 
 # Get a ROCM power measurement for non-N/A cards.
 _get_rocm_power_measurement() {
-    rocm-smi --showpower --csv | tail -n +2 | head -n -1 | while IFS=',' read -r device power; do
-        if [ "$power" != "N/A"* ]; then
-            echo "$device $power"
-        fi
+    rocm-smi --showpower --csv \
+    | tail -n +2 \
+    | head -n -1 \
+    | while IFS=',' read -r device power; do
+        # Skip N/A value.
+        case $power in
+            N/A*) ;;
+            *) printf '%s %s\n' "$device" "$power" ;;
+        esac
     done
 }
 
@@ -49,16 +54,13 @@ rocm_profile() {
         return 1
     fi
 
-    # Initialize arrays for trackig energy consumption.
-    # TODO: Use POSIX arrays for devices and energy.
-    devices=()
-    energy=()
-    i=0
-    while read -r device power; do
-        devices[i]="$device"
-        energy[i]=0
-        ((i++))
-    done < <(_get_rocm_power_measurement)
+    # Initialize stacks for trackig energy consumption over time.
+    stack_create "devices"
+    stack_create "energies"
+    _get_rocm_power_measurement | while IFS=' ' read -r device power; do
+        stack_push "devices" "$device"
+        stack_push "energies" "0"
+    done
 
     # Launch the application and store PID for tracking.
     "$@" &
@@ -67,16 +69,17 @@ rocm_profile() {
 
     # Poll with a set frequency until the child process is finished.
     poll_time_s=0.2
-    watts=0.0
 
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
-        while read -r device power; do
+        _get_rocm_power_measurement | while IFS=' ' read -r device power; do
             watts="$power"
             energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
-            energy[i]=$(echo "${energy[i]} + $energy_consumed" | bc -l)
-            ((i++))
-        done < <(_get_rocm_power_measurement)
+            cur_energy=$(stack_get "energies" "$i")
+            stack_set "energies" "$i" \
+                "$(echo "$cur_energy + $energy_consumed" | bc -l)"
+            i=$((i+1))
+        done
 
         # Poll with a fixed frequency.
         sleep $poll_time_s
@@ -84,9 +87,13 @@ rocm_profile() {
 
     # Report energy consumption per GPU and in total
     total_energy=0.0
-    for i in "${!devices[@]}"; do
-        echo -e "GPU ${devices[i]}:\t${energy[i]} J"
-        total_energy=$(echo "$total_energy + ${energy[i]}" | bc -l)
+
+    while [ "$(stack_len "devices")" -ne 0 ]; do
+        device=$(stack_pop "devices")
+        energy=$(stack_pop "energies")
+        printf "GPU %s:\t%s J" "$device" "$energy"
+        total_energy=$(echo "$total_energy + $energy" | bc -l)
     done
-    echo -e "Total:\t${energy[i]} J"
+
+    printf "Total:\t%s J" "$total_energy"
 }

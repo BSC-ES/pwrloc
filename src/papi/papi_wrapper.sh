@@ -50,6 +50,7 @@ _compile_papi_profiler() {
 _parse_papi_unit_to_joules() {
     unit="$1"
 
+    # TODO: Use split_scientific_notation from general_utils.sh?
     case $unit in
     *"^"*)
         # Split "base^exponent"
@@ -76,16 +77,6 @@ _parse_papi_unit_to_joules() {
         return
         ;;
     esac
-
-    # # Parse scientific notation like "2^-32 Joules"
-    # # TODO: Rework [[]] and BASH_REMATCH to be POSIX compliant.
-    # if [[ "$unit" =~ ^([0-9.]+)\^(-?[0-9]+)$ ]]; then
-    #     base="${BASH_REMATCH[1]}"
-    #     exponent="${BASH_REMATCH[2]}"
-    #     # local exponent=$(echo "$unit" | sed -E "s/^${base}\^\((-?[0-9]+)\).*$/\1/")
-    #     printf "scale=20; %s^(%s)\n" "$base" "$exponent" | bc -l | sed 's/^\./0./'
-    #     return
-    # fi
 
     # Parse SI prefixes.
     case "$unit" in
@@ -268,6 +259,9 @@ _parse_papi_native_avail() {
             fi
         fi
     done
+
+    # Clean up.
+    stack_destroy "modifiers"
 }
 
 # Parse papi_native_avail for RAPL related events and their unit scalars.

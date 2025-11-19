@@ -55,7 +55,8 @@ slurm_available() {
 
     # Check if the plugin is set within the SLURM config.
     if ! function_exists scontrol; then
-        verbose_echo print_warning "<slurm_available> Function 'scontrol' not available."
+        verbose_echo print_warning \
+            "<slurm_available> Function 'scontrol' not available."
         printf "1\n"
         return 1
     fi

@@ -11,6 +11,8 @@
 #   - Get stack length:             stack_len <stack_name>
 #   - Add value to top:             stack_push <stack_name> <value>
 #   - Delete and return top value:  stack_pop <stack_name>
+#   - Get the value at a index:     stack_get <stack_name> <index>
+#   - Set the value at a index:     stack_set <stack_name> <index> <new_value>
 #   - Delete stack value:           stack_delete <stack_name> <index>
 #   - Foreach over values:          stack_foreach <stack_name> <command>
 #   - Destroy entire stack:         stack_destory <stack_name>
@@ -22,6 +24,8 @@ UTILSDIR="$SRCDIR/utils"
 
 # Prefix for internal variables to ensure uniqueness.
 STACK_PREFIX="__stack__"
+
+# TODO: Probably need to remove exports.
 
 # Check if a given stack already exists.
 #   Usage:  stack_exists <stack_name>
@@ -65,7 +69,7 @@ stack_create() {
     fi
 
     # Set length variable to indicate existence.
-    eval "$STACK_PREFIX${1}_len=0"
+    eval "export $STACK_PREFIX${1}_len=0"
 }
 
 # Get the length of a stack.
@@ -104,8 +108,8 @@ stack_push() {
 
     # Push the value on len+1.
     eval "_i_stack_push=\${$STACK_PREFIX${1}_len}"
-    eval "$STACK_PREFIX${1}_$_i_stack_push=\$2"
-    eval "$STACK_PREFIX${1}_len=\$((_i_stack_push + 1))"
+    eval "export $STACK_PREFIX${1}_$_i_stack_push=\$2"
+    eval "export $STACK_PREFIX${1}_len=\$((_i_stack_push + 1))"
 
     # Clean up.
     unset _i_stack_push
@@ -129,7 +133,7 @@ stack_pop() {
     printf "%s\n" "$_val_stack_pop"
 
     # Remove the top element.
-    eval "$STACK_PREFIX${1}_len=$_i_stack_pop"
+    eval "export $STACK_PREFIX${1}_len=$_i_stack_pop"
     eval "unset $STACK_PREFIX${1}_$_i_stack_pop"
 
     # Clean up.
@@ -144,7 +148,7 @@ stack_get() {
         print_error "<stack_get> No stack name passed."
         return 1
     elif ! is_alphanumerical "$1"; then
-        print_error "<stack_get> Value is not alphanumerical."
+        print_error "<stack_get> Stack name is not alphanumerical."
         return 1
     elif [ -z "$2" ]; then
         print_error "<stack_get> No index passed."
@@ -156,6 +160,46 @@ stack_get() {
 
     # Print stack value at given index.
     eval "printf '%s\\n' \${$STACK_PREFIX${1}_$2}"
+}
+
+# Sets the stack value at the provided index.
+#   Usage:    stack_set <stack_name> <index> <new_value>
+stack_set() {
+    # Sanitize input.
+    if [ -z "$1" ]; then
+        print_error "<stack_get> No stack name passed."
+        return 1
+    elif ! is_alphanumerical "$1"; then
+        print_error "<stack_get> Stack name is not alphanumerical."
+        return 1
+    elif [ -z "$2" ]; then
+        print_error "<stack_get> No index passed."
+        return 1
+    elif ! is_numerical "$2"; then
+        print_error "<stack_get> Index is not numerical."
+        return 1
+    elif [ -z "$3" ]; then
+        print_error "<stack_get> No new value passed."
+        return 1
+    elif ! is_alphanumerical "$3"; then
+        print_error "<stack_get> New value is not alphanumerical."
+        return 1
+    fi
+
+    # Name arguments.
+    name="$1"
+    index="$2"
+    value="$3"
+
+    # Make sure the index is already set, or is the next new one.
+    eval "_i_stack_set=\${$STACK_PREFIX${name}_len}"
+    if [ "$index" -ge "$_i_stack_set" ]; then
+        print_error "<stack_get> Given index '$index' outside of stack's current reach <'$_i_stack_set'."
+        return 1
+    fi
+
+    # Set index to new value.
+    eval "export $STACK_PREFIX${name}_$_i_stack_set=\$value"
 }
 
 # Deletes a stack value at the given index.
@@ -192,7 +236,7 @@ stack_delete() {
     while [ "$_i_stack_delete" -lt $((_len_stack_delete - 1)) ]; do
         _j_stack_delete=$((_i_stack_delete + 1))
         eval "_val_stack_delete=\${$STACK_PREFIX${1}_\$_j_stack_delete}"
-        eval "$STACK_PREFIX${1}_$_i_stack_delete=\"\$_val_stack_delete\""
+        eval "export $STACK_PREFIX${1}_$_i_stack_delete=\"\$_val_stack_delete\""
         _i_stack_delete=$((_i_stack_delete + 1))
     done
 
@@ -200,7 +244,7 @@ stack_delete() {
     eval "unset $STACK_PREFIX${1}_$((_len_stack_delete - 1))"
 
     # Update length.
-    eval "$STACK_PREFIX${1}_len=\$((_len_stack_delete - 1))"
+    eval "export $STACK_PREFIX${1}_len=\$((_len_stack_delete - 1))"
 
     # Clean up.
     unset _len_stack_delete _idx_stack_delete _i_stack_delete _j_stack_delete \
