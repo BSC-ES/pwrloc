@@ -71,7 +71,8 @@ test_stack_pop() {
     fi
 
     # Check for first pop.
-    top_val=$(stack_pop "stack")
+    stack_pop "stack"
+    top_val=$STACK_POP_RESULT
     if [ "$top_val" != "3" ]; then
         printf "Top value incorrect: '%s' != 3.\n" "$top_val" >&2
         return 1
@@ -82,7 +83,8 @@ test_stack_pop() {
     fi
 
     # Check for second pop.
-    top_val=$(stack_pop "stack")
+    stack_pop "stack"
+    top_val=$STACK_POP_RESULT
     if [ "$top_val" != "2" ]; then
         printf "Top value incorrect: '%s' != 2.\n" "$top_val" >&2
         return 1
@@ -93,7 +95,8 @@ test_stack_pop() {
     fi
 
     # Check for third pop.
-    top_val=$(stack_pop "stack")
+    stack_pop "stack"
+    top_val=$STACK_POP_RESULT
     if [ "$top_val" != "1" ]; then
         printf "Top value incorrect: '%s' != 1.\n" "$top_val" >&2
         return 1
@@ -106,14 +109,70 @@ test_stack_pop() {
 
 # Test stack_get.
 test_stack_get() {
-    # TODO: Implement!
-    printf ""
+    # Setup stack with 3 values.
+    stack_create "stack"
+    stack_push "stack" "val1"
+    stack_push "stack" "val2"
+    stack_push "stack" "val3"
+
+    # Make sure the starting length is correct.
+    if [ "$(stack_len "stack")" -ne 3 ]; then
+        printf "Created stack does not have length 3.\n" >&2
+        return 1
+    fi
+
+    # Check for the first value.
+    val=$(stack_get "stack" "0")
+    if [ "$val" != "val1" ]; then
+        printf "The first value is incorrect: '%s' != val1.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the second value.
+    val=$(stack_get "stack" "1")
+    if [ "$val" != "val2" ]; then
+        printf "The second value is incorrect: '%s' != val2.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the third value.
+    val=$(stack_get "stack" "2")
+    if [ "$val" != "val3" ]; then
+        printf "The third value is incorrect: '%s' != val3.\n" "$val" >&2
+        return 1
+    fi
 }
 
 # Test stack_set.
 test_stack_set() {
-    # TODO: Implement!
-    printf ""
+    # Setup stack with 3 values.
+    stack_create "stack"
+    stack_push "stack" "val1"
+    stack_push "stack" "val2"
+    stack_push "stack" "val3"
+
+    # Make sure the starting length is correct.
+    if [ "$(stack_len "stack")" -ne 3 ]; then
+        printf "Created stack does not have length 3.\n" >&2
+        return 1
+    fi
+
+    # Make sure the 2nd value is correct.
+    val=$(stack_get "stack" "1")
+    if [ "$val" != "val2" ]; then
+        printf "The second value is incorrect: '%s' != val2.\n" "$val" >&2
+        return 1
+    fi
+
+    # Overwrite the 2nd value.
+    stack_set "stack" "1" "new2"
+
+    # Check it has been properly overwritten.
+    val=$(stack_get "stack" "1")
+    if [ "$val" != "new2" ]; then
+        printf "The second value is incorrect: '%s' != 'new2'.\n" "$val" >&2
+        return 1
+    fi
 }
 
 # Test stack_delete.

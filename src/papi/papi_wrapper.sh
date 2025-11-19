@@ -249,7 +249,8 @@ _parse_papi_native_avail() {
                 else
                     # Otherwise, take combinations of the event and modifiers.
                     while [ "$(stack_len "modifiers")" -ne 0 ]; do
-                        mod=$(stack_pop "modifiers")
+                        stack_pop "modifiers"
+                        mod=$STACK_POP_RESULT
                         _print_papi_event "$mode" "${event_name}${mod}" "$unit"
                     done
                 fi
@@ -285,7 +286,8 @@ _get_papi_native_avail() {
     events=""
 
     while [ "$(stack_len "components")" -ne 0 ]; do
-        component=$(stack_pop "components")
+        stack_pop "components"
+        component=$STACK_POP_RESULT
         events=$(papi_native_avail -i "$component")
 
         # Print the found counters and units to stdout.

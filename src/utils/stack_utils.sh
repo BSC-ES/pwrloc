@@ -10,7 +10,7 @@
 #   - Create stack:                 stack_create <stack_name>
 #   - Get stack length:             stack_len <stack_name>
 #   - Add value to top:             stack_push <stack_name> <value>
-#   - Delete and return top value:  stack_pop <stack_name>
+#   - Delete and export top value:  stack_pop <stack_name>
 #   - Get the value at a index:     stack_get <stack_name> <index>
 #   - Set the value at a index:     stack_set <stack_name> <index> <new_value>
 #   - Delete stack value:           stack_delete <stack_name> <index>
@@ -105,11 +105,11 @@ stack_push() {
 
     # Push the value on len+1.
     eval "_i_stack_push=\${$STACK_PREFIX${1}_len}"
-    eval "export $STACK_PREFIX${1}_$_i_stack_push=\$2"
-    eval "export $STACK_PREFIX${1}_len=\$((_i_stack_push + 1))"
+    eval "export $STACK_PREFIX${1}_$_i_stack_push=$2"
+    eval "export $STACK_PREFIX${1}_len=\$((\$_i_stack_push + 1))"
 }
 
-# Deletes and returns the top stack value.
+# Deletes and exports the top stack value in $STACK_POP_RESULT.
 #   Usage:    stack_pop <stack_name>
 stack_pop() {
     # Sanitize input.
@@ -121,10 +121,10 @@ stack_pop() {
         return 1
     fi
 
-    # Get and return top element.
+    # Get and export the top element.
     eval "_i_stack_pop=\$((\${$STACK_PREFIX${1}_len} - 1))"
     eval "_val_stack_pop=\${$STACK_PREFIX${1}_$_i_stack_pop}"
-    printf "%s\n" "$_val_stack_pop"
+    export STACK_POP_RESULT="$_val_stack_pop"
 
     # Remove the top element.
     eval "export $STACK_PREFIX${1}_len=$_i_stack_pop"
@@ -190,7 +190,7 @@ stack_set() {
     fi
 
     # Set index to new value.
-    eval "export $STACK_PREFIX${name}_$_i_stack_set=\$value"
+    eval "export $STACK_PREFIX${name}_$index=$value"
 }
 
 # Deletes a stack value at the given index.

@@ -89,8 +89,10 @@ rocm_profile() {
     total_energy=0.0
 
     while [ "$(stack_len "devices")" -ne 0 ]; do
-        device=$(stack_pop "devices")
-        energy=$(stack_pop "energies")
+        stack_pop "devices"
+        device=$STACK_POP_RESULT
+        stack_pop "energies"
+        energy=$STACK_POP_RESULT
         printf "GPU %s:\t%s J" "$device" "$energy"
         total_energy=$(echo "$total_energy + $energy" | bc -l)
     done
