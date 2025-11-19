@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # A POSIX compliant stack implementation that allows for a minimal set of
-# operations. All stacks are indexed from 0.
-# All user input is limited to being "alphanumerical" to (relatively) safely use
-# eval expressions.
+# operations. Stacks are indexed from 0 and are exported by default to allow for
+# sub-shell parsing. All user input is limited to being "alphanumerical" to
+# (relatively) safely use eval expressions.
 #
 # Syntax:
 #   - Check stack existence:        stack_exists <stack_name>
@@ -25,7 +25,6 @@ UTILSDIR="$SRCDIR/utils"
 # Prefix for internal variables to ensure uniqueness.
 STACK_PREFIX="__stack__"
 
-# TODO: Probably need to remove exports.
 
 # Check if a given stack already exists.
 #   Usage:  stack_exists <stack_name>
@@ -42,10 +41,8 @@ stack_exists() {
     # Check if the stack has a length variable, clean up, and return.
     eval "_check_stack_exists=\${$STACK_PREFIX${1}_len+set}"
     if [ "$_check_stack_exists" = "set" ]; then
-        unset _check_stack_exists
         return 0
     else
-        unset _check_stack_exists
         return 1
     fi
 }
@@ -110,9 +107,6 @@ stack_push() {
     eval "_i_stack_push=\${$STACK_PREFIX${1}_len}"
     eval "export $STACK_PREFIX${1}_$_i_stack_push=\$2"
     eval "export $STACK_PREFIX${1}_len=\$((_i_stack_push + 1))"
-
-    # Clean up.
-    unset _i_stack_push
 }
 
 # Deletes and returns the top stack value.
@@ -135,9 +129,6 @@ stack_pop() {
     # Remove the top element.
     eval "export $STACK_PREFIX${1}_len=$_i_stack_pop"
     eval "unset $STACK_PREFIX${1}_$_i_stack_pop"
-
-    # Clean up.
-    unset _i_stack_pop _val_stack_pop
 }
 
 # Gets the stack value at the provided index.
@@ -167,22 +158,22 @@ stack_get() {
 stack_set() {
     # Sanitize input.
     if [ -z "$1" ]; then
-        print_error "<stack_get> No stack name passed."
+        print_error "<stack_set> No stack name passed."
         return 1
     elif ! is_alphanumerical "$1"; then
-        print_error "<stack_get> Stack name is not alphanumerical."
+        print_error "<stack_set> Stack name is not alphanumerical."
         return 1
     elif [ -z "$2" ]; then
-        print_error "<stack_get> No index passed."
+        print_error "<stack_set> No index passed."
         return 1
     elif ! is_numerical "$2"; then
-        print_error "<stack_get> Index is not numerical."
+        print_error "<stack_set> Index is not numerical."
         return 1
     elif [ -z "$3" ]; then
-        print_error "<stack_get> No new value passed."
+        print_error "<stack_set> No new value passed."
         return 1
     elif ! is_alphanumerical "$3"; then
-        print_error "<stack_get> New value is not alphanumerical."
+        print_error "<stack_set> New value is not alphanumerical."
         return 1
     fi
 
@@ -194,7 +185,7 @@ stack_set() {
     # Make sure the index is already set, or is the next new one.
     eval "_i_stack_set=\${$STACK_PREFIX${name}_len}"
     if [ "$index" -ge "$_i_stack_set" ]; then
-        print_error "<stack_get> Given index '$index' outside of stack's current reach <'$_i_stack_set'."
+        print_error "<stack_set> Given index '$index' outside of stack's current reach <'$_i_stack_set'."
         return 1
     fi
 
@@ -221,7 +212,7 @@ stack_delete() {
     fi
 
     # Get current length and index for checks.
-    eval "_len_stack_delete=\${${STACK_PREFIX}${1}_len}"
+    eval "_len_stack_delete=\${$STACK_PREFIX${1}_len}"
     _idx_stack_delete=$2
 
     # Bounds check.
@@ -245,10 +236,6 @@ stack_delete() {
 
     # Update length.
     eval "export $STACK_PREFIX${1}_len=\$((_len_stack_delete - 1))"
-
-    # Clean up.
-    unset _len_stack_delete _idx_stack_delete _i_stack_delete _j_stack_delete \
-        _val_stack_delete
 }
 
 # Iterate over all stack elements and execute given command.
@@ -277,11 +264,28 @@ stack_foreach() {
         eval "$2 \"\$val\""
         _i_stack_foreach=$((_i_stack_foreach + 1))
     done
-    unset _len_stack_foreach _i_stack_foreach val
 }
 
 # Destroy and clean up an entire stack.
 #   Usage:      stack_destory <stack_name>
 stack_destroy() {
-    printf "NOT IMPLEMENTED.\n"
+    # Sanitize input.
+    if [ -z "$1" ]; then
+        print_error "<stack_foreach> No stack name passed."
+        return 1
+    elif ! is_alphanumerical "$1"; then
+        print_error "<stack_foreach> Stack name is not alphanumerical."
+        return 1
+    fi
+
+    # Get current length and delete everything till that index.
+    eval "_len_stack_destroy=\${$STACK_PREFIX${1}_len}"
+    i=0
+    while [ "$i" -lt "$_len_stack_destroy" ]; do
+        eval "unset $STACK_PREFIX${1}_$i"
+        i=$((i + 1))
+    done
+
+    # Finally, unset the length variable itself.
+    eval "unset $STACK_PREFIX${1}_len"
 }
