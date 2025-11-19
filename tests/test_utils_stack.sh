@@ -209,8 +209,27 @@ test_stack_delete() {
 
 # Test stack_foreach.
 test_stack_foreach() {
-    # TODO: Implement!
-    printf ""
+    # Setup stack with 3 values.
+    stack_create "stack"
+    stack_push "stack" "val1"
+    stack_push "stack" "val2"
+    stack_push "stack" "val3"
+
+    # Make sure the starting length is correct.
+    if [ "$(stack_len "stack")" -ne 3 ]; then
+        printf "Created stack does not have length 3.\n" >&2
+        return 1
+    fi
+
+    # Print all values.
+    values=$(stack_foreach "stack" "printf '%s\n'")
+    expected_values="val1
+val2
+val3"
+    if [ "$values" != "$expected_values" ]; then
+        printf "Printed values are not as expected.\n" >&2
+        return 1
+    fi
 }
 
 # Test stack_destroy.

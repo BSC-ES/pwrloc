@@ -42,7 +42,7 @@ is_numerical() {
 is_alphanumerical() {
     case "$1" in
         # Reject characters not in whitelist and empty strings.
-        *[!A-Za-z0-9_/\-:=]* | '') return 1 ;;
+        *[!A-Za-z0-9_/:=\ \'%\\-]* | '') return 1 ;;
         *) return 0 ;;
     esac
 }
