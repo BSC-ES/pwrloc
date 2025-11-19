@@ -96,9 +96,10 @@ split_scientific_notation() {
 # Zip the items of two newline-separated strings which are of the same length.
 #   Usage:      zip_strings <list_1> <list_2>
 zip_strings() {
-    paste -d ' ' - <<EOF1 <<EOF2
-$1
-EOF1
-$2
-EOF2
+    tmp1=$(mktemp)
+    tmp2=$(mktemp)
+    printf '%s\n' "$1" > "$tmp1"
+    printf '%s\n' "$2" > "$tmp2"
+    paste -d ' ' "$tmp1" "$tmp2"
+    rm -f "$tmp1" "$tmp2"
 }
