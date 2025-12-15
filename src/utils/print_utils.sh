@@ -106,3 +106,8 @@ bool_to_text() {
         printf "FALSE\n"
     fi
 }
+
+# Print the given argument. Used for array_foreach.
+print_argument() {
+    printf '%s' "$1"
+}

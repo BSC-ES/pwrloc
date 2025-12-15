@@ -9,6 +9,7 @@ ROCMDIR="$SRCDIR/rocm"
 . "$ROCMDIR/../utils/energy_utils.sh"
 . "$ROCMDIR/../utils/general_utils.sh"
 . "$ROCMDIR/../utils/print_utils.sh"
+. "$PAPIDIR/../utils/array_utils.sh"
 
 
 # Returns 0 if papi is available, 1 otherwise.
@@ -54,13 +55,15 @@ rocm_profile() {
         return 1
     fi
 
-    # Initialize stacks for trackig energy consumption over time.
-    stack_create "devices"
-    stack_create "energies"
-    _get_rocm_power_measurement | while IFS=' ' read -r device power; do
-        stack_push "devices" "$device"
-        stack_push "energies" "0"
-    done
+    # Initialize arrays for trackig energy consumption over time.
+    devices=""
+    energies=""
+    while IFS=' ' read -r device power; do
+        devices=$(array_push "$devices" "$device")
+        energies=$(array_push "$energies" "0")
+    done <<EOF
+$(_get_rocm_power_measurement)
+EOF
 
     # Launch the application and store PID for tracking.
     "$@" &
@@ -72,14 +75,16 @@ rocm_profile() {
 
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
-        _get_rocm_power_measurement | while IFS=' ' read -r device power; do
+        while IFS=' ' read -r device power; do
             watts="$power"
             energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
-            cur_energy=$(stack_get "energies" "$i")
-            stack_set "energies" "$i" \
-                "$(echo "$cur_energy + $energy_consumed" | bc -l)"
+            cur_energy=$(array_get "$energies" "$i")
+            energies=$(array_set "$energies" "$i" \
+                "$(echo "$cur_energy + $energy_consumed" | bc -l)")
             i=$((i+1))
-        done
+        done <<EOF
+$(_get_rocm_power_measurement)
+EOF
 
         # Poll with a fixed frequency.
         sleep $poll_time_s
@@ -88,11 +93,11 @@ rocm_profile() {
     # Report energy consumption per GPU and in total
     total_energy=0.0
 
-    while [ "$(stack_len "devices")" -ne 0 ]; do
-        stack_pop "devices"
-        device=$STACK_POP_RESULT
-        stack_pop "energies"
-        energy=$STACK_POP_RESULT
+    while [ "$(array_len "$devices")" -ne 0 ]; do
+        device=$(array_get_last "$devices")
+        devices=$(array_pop "$devices")
+        energy=$(array_get_last "$energies")
+        energies=$(array_pop "$energies")
         printf "GPU %s:\t%s J" "$device" "$energy"
         total_energy=$(echo "$total_energy + $energy" | bc -l)
     done

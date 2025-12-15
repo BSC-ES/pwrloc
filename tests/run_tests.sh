@@ -6,7 +6,6 @@
 
 # Get the directory where this file is located to load dependencies.
 TESTSDIR="$SRCDIR/../tests"
-. "$TESTSDIR/test_utils_stack.sh"
 
 # Import general utils.
 . "$SRCDIR/utils/print_utils.sh"

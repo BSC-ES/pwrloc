@@ -1,12 +1,38 @@
 #!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This file contains common utils to be used.
-# TODO: Write tests for this entire file!
 # ------------------------------------------------------------------------------
 
 # Checks if the passed function exists.
 function_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Check if the provided string only contains whitespaces, tabs, or newlines.
+#   Usage:  is_whitespace <input>
+is_whitespace() {
+    printf '%s' "$1" | awk '
+        /[^[:space:]]/ { found = 1 }
+        END { exit found ? 1 : 0 }
+    '
+}
+
+# Strip whitespaces, tabs, or newlines from the input string.
+#   Usage:  strip_whitespace <input>
+strip_whitespace() {
+    printf '%s' "$1" | awk '
+    {
+        if (length($0)) {
+            if (length(prev)) print prev
+            prev = $0
+        } else {
+            if (length(prev)) print prev
+            prev = ""
+        }
+    }
+    END {
+        if (length(prev)) print prev
+    }'
 }
 
 # Check if the provided number is numerical.

@@ -8,7 +8,7 @@
 PERFDIR="$SRCDIR/perf"
 . "$PERFDIR/../utils/general_utils.sh"
 . "$PERFDIR/../utils/print_utils.sh"
-. "$PAPIDIR/../utils/stack_utils.sh"
+. "$PAPIDIR/../utils/array_utils.sh"
 
 
 # Returns 0 if perf is available, 1 otherwise.
@@ -119,11 +119,12 @@ _gather_results() {
 
     # Merge the energy logs into one, starting by own file.
     energy_total=$(_sanitize_energy_values "$tmp_dir/rank_0.out")
-    stack_create "perf_total_energy"
-    printf '%s\n' "$energy_total" \
-    | while IFS= read -r line; do
-        stack_push "perf_total_energy" "$line"
-    done
+    perf_total_energy=""
+    while IFS= read -r line; do
+        perf_total_energy=$(array_push "$perf_total_energy" "$line")
+    done <<EOF
+$energy_total
+EOF
 
     # Aggregate the collecting values of all ranks.
     i=1
@@ -132,13 +133,13 @@ _gather_results() {
 
         # Aggregate the values of this rank for each event.
         j=0
-        printf '%s\n' "$energy_input" \
-        | while IFS= read -r line; do
-            cur_energy=$(stack_get "perf_total_energy" "$j")
-            stack_set "perf_total_energy" "$j" \
-                "$(echo "$cur_energy + $line" | bc -l)"
+        while IFS= read -r line; do
+            cur_energy=$(array_get "$perf_total_energy" "$j")
+            perf_total_energy=$(array_set "$perf_total_energy" "$j" "$(echo "$cur_energy + $line" | bc -l)")
             j=$((j + 1))
-        done
+        done <<EOF
+$energy_input
+EOF
 
         i=$((i + 1))
     done
@@ -147,10 +148,7 @@ _gather_results() {
     rm -rd "$tmp_dir"
 
     # Print the totals as a newline-separated string.
-    stack_foreach "perf_total_energy" "printf '%s\n'"
-
-    # Clean up.
-    stack_destroy "perf_total_energy"
+    array_foreach "$perf_total_energy" print_argument
 }
 
 # Profile given application with perf and return the total consumed energy.

@@ -8,7 +8,7 @@
 PAPIDIR="$SRCDIR/papi"
 . "$PAPIDIR/../utils/general_utils.sh"
 . "$PAPIDIR/../utils/print_utils.sh"
-. "$PAPIDIR/../utils/stack_utils.sh"
+. "$PAPIDIR/../utils/array_utils.sh"
 
 PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
 
@@ -196,7 +196,7 @@ _parse_papi_native_avail() {
 
             # Reset values for parsing this event.
             in_event=1
-            stack_create "modifiers"
+            modifiers=""
             unit=""
             continue
         fi
@@ -217,8 +217,8 @@ _parse_papi_native_avail() {
                     :period=* | :freq=* | :excl=* | :pinned=* )
                         ;;
                     *)
-                        # Store parsed modifiers on a stack.
-                        stack_push "modifiers" "$mod"
+                        # Store parsed modifiers in an array.
+                        modifiers=$(array_push "$modifiers" "$mod")
                         ;;
                 esac
             fi
@@ -244,13 +244,13 @@ _parse_papi_native_avail() {
                 [ -z "$unit" ] && unit=1
 
                 # If no modifiers were collected, provide event as-is.
-                if [ "$(stack_len "modifiers")" -eq 0 ]; then
+                if [ "$(array_len "$modifiers")" -eq 0 ]; then
                     _print_papi_event "$mode" "$event_name" "$unit"
                 else
                     # Otherwise, take combinations of the event and modifiers.
-                    while [ "$(stack_len "modifiers")" -ne 0 ]; do
-                        stack_pop "modifiers"
-                        mod=$STACK_POP_RESULT
+                    while [ "$(array_len "$modifiers")" -ne 0 ]; do
+                        mod=$(array_get_last "$modifiers")
+                        modifiers=$(array_pop "$modifiers")
                         _print_papi_event "$mode" "${event_name}${mod}" "$unit"
                     done
                 fi
@@ -260,9 +260,6 @@ _parse_papi_native_avail() {
             fi
         fi
     done
-
-    # Clean up.
-    stack_destroy "modifiers"
 }
 
 # Parse papi_native_avail for RAPL related events and their unit scalars.
@@ -280,22 +277,19 @@ _get_papi_native_avail() {
     mode="$1"
 
     # Fetch list of counters and units.
-    stack_create "components"
-    stack_push "components" "rapl"
-    stack_push "components" "cray_pm"
+    components=""
+    components=$(array_push "$components" "rapl")
+    components=$(array_push "$components" "cray_pm")
     events=""
 
-    while [ "$(stack_len "components")" -ne 0 ]; do
-        stack_pop "components"
-        component=$STACK_POP_RESULT
+    while [ "$(array_len "$components")" -ne 0 ]; do
+        component=$(array_get_last "$components")
+        components=$(array_pop "$components")
         events=$(papi_native_avail -i "$component")
 
         # Print the found counters and units to stdout.
         _parse_papi_native_avail "$mode" "$events"
     done
-
-    # Clean up.
-    stack_destroy "components"
 }
 
 # Return the set of energy events supported by this system.
