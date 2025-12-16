@@ -60,7 +60,7 @@ _get_energy_consumed() {
     perf_stat_events=$(echo "$perf_stat_events" | tr '\n' ' ')
 
     # Profile the binary with perf and store in stdout.
-    perf_out=$(perf stat -e "$perf_stat_events" -- "$@" 2>&1)
+    perf_out=$(perf stat $perf_stat_events -- $@ 2>&1)
 
     # Extract the energy values from the perf output.
     energy=$(echo "$perf_out" | sed -n 's/^\(.*\) Joules.*/\1/p')
@@ -97,16 +97,8 @@ _sanitize_energy_values() {
 #   !! This function should only be called by rank 0. !!
 _gather_results() {
     tmp_dir="$1"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:1}}}
     file_count=0
-
-    # Throw error if no number of ranks detected.
-    if [ "$num_ranks" -eq -1 ]; then
-        print_error \
-            "<_gather_results> No ranks found to merge PERF energy values."
-        printf "\n"
-        return 1
-    fi
 
     # Wait for all files to appear.
     while true; do

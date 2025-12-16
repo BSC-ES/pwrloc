@@ -43,14 +43,19 @@ is_numerical() {
         *[!0-9.+-]* | '') return 1 ;;
         # Match floats.
         *.*)
-            # Valid patterns:
-            #   [+|-]digits.digits
-            #   [+|-]digits.
-            #   [+|-].digits
+            # Parse unsigned floats.
+            case "$1" in
+                [0-9]*.[0-9]*) return 0 ;;
+            esac
+
+            # Parse signed floats.
             case "$1" in
                 [+-]*[0-9]*.[0-9]*) return 0 ;;
-                *) return 1 ;;
             esac
+
+            # Default behavior when there are no matches.
+            echo "NO VALID FLOAT" >&2;
+            return 1
             ;;
         # Match ints.
         *)

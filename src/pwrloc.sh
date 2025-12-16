@@ -98,7 +98,7 @@ show_setup() {
     verbose_echo "profiler = $profiler"
     verbose_echo "bin = $bin"
     verbose_echo "args = $args"
-    verbose_echo "======== END SETUP ========\n"
+    verbose_echo "======== END SETUP ========"
 }
 
 # Main entry point for wrapper, containing argument parser.

@@ -109,5 +109,5 @@ bool_to_text() {
 
 # Print the given argument. Used for array_foreach.
 print_argument() {
-    printf '%s' "$1"
+    printf '%s\n' "$1"
 }
