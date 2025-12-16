@@ -54,7 +54,6 @@ is_numerical() {
             esac
 
             # Default behavior when there are no matches.
-            echo "NO VALID FLOAT" >&2;
             return 1
             ;;
         # Match ints.
