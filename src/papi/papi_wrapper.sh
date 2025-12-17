@@ -46,34 +46,45 @@ _compile_papi_profiler() {
     fi
 }
 
-# Convert a unit string into a floating-point scaling factor to Joules
-_parse_papi_unit_to_joules() {
+# Convert a unit-string into a floating-point scalar for converting in Joule.
+_parse_papi_unit_to_joule_scalar() {
     unit="$1"
 
-    # TODO: Use split_scientific_notation from general_utils.sh?
     case $unit in
     *"^"*)
-        # Split "base^exponent"
-        base=$(printf '%s\n' "$unit" | sed 's/\^.*//')
-        exponent=$(printf '%s\n' "$unit" | sed 's/.*\^//')
+        echo "IN SCIENTIFIC NOTATION PARSING" >&2
+        echo "    arg: $unit" >&2
 
-        # Validate extraction (digits, decimal, optional - sign)
-        case $base in
-            ''|*[!0-9.]*)
-                return 1
-                ;;
-        esac
-        case $exponent in
-            ''|*[!0-9-]*|*--*)
-                return 1
-                ;;
-        esac
+        test=$(split_scientific_notation "$unit")
+        echo "test: $test" >&2
+
+        IFS='
+' read -r base exponent <<EOF
+$(split_scientific_notation "$unit")
+EOF
+        echo "base: $base" >&2
+        echo "exponent: $exponent" >&2
+
+        # # Split "base^exponent"
+        # base=$(printf '%s\n' "$unit" | sed 's/\^.*//')
+        # exponent=$(printf '%s\n' "$unit" | sed 's/.*\^//')
+
+        # # Validate extraction (digits, decimal, optional - sign)
+        # case $base in
+        #     ''|*[!0-9.]*)
+        #         return 1
+        #         ;;
+        # esac
+        # case $exponent in
+        #     ''|*[!0-9-]*|*--*)
+        #         return 1
+        #         ;;
+        # esac
 
         # Compute the value using bc
         printf "scale=20; %s^(%s)\n" "$base" "$exponent" |
             bc -l |
             sed 's/^\./0./'
-
         return
         ;;
     esac
@@ -88,7 +99,7 @@ _parse_papi_unit_to_joules() {
     kJ)         printf "1000\n" ;;
     MJ)         printf "1000000\n" ;;
     GJ)         printf "1000000000\n" ;;
-    *)          printf "Unrecognized unit: %s\n" "$unit" >&2 ;;
+    *)          printf "Unrecognized SI prefix unit: %s\n" "$unit" >&2 ;;
     esac
 }
 
@@ -180,7 +191,7 @@ _parse_papi_native_avail() {
     # Get events from user.
     events="$2"
 
-    # Locals for parsing each event.
+    # Locals for parsing each event, where unit will contain Joule scalars.
     in_event=0
     event_name=""
     unit=""
@@ -225,21 +236,38 @@ _parse_papi_native_avail() {
 
             # Extract units in MN5 and LUMI format.
             if _detect_unit_line "$line"; then
-                # Extract the unit token after ":" or "is".
-                # TODO: Find better formatting for this sed monstrosity.
-                unit=$(printf '%s\n' "$line" \
-                    | sed -n '
-                        # Normalize for multiple spaces.
-                        s/[[:space:]]\+/ /g
-                        # Capture the value after "Units:" or "Units is".
-                        s/.*[Uu]nits\{0,1\}[[:space:]]*\(:\|is\)[[:space:]]*\([0-9]\+\|-*[0-9]\+\|2\^\-*[0-9]\+\|[A-Za-z]\+\).*/\2/p
-                    ')
+                # Extract unit token and convert to scalar.
+                case $line in
+                    # Parse MN5 format.
+                    *'Unit is '*)
+                        verbose_echo "Parsing MN5 format"
+                        unit_token=$(printf '%s\n' "$line" |
+                            sed 's/.*Unit is[[:space:]]*//; s/[[:space:]]*|.*//')
+                        scalar=${unit_token%% *}
+                        unit=${unit_token#* }
 
-                [ -n "$unit" ] && unit=$(_parse_papi_unit_to_joules "$unit")
+                        # Print warning if unit is not Joules.
+                        if [ "$unit" == "Joules" ]; then
+                            unit=$(_parse_papi_unit_to_joule_scalar "$scalar")
+                        else
+                            verbose_echo print_warning "Unit line did not have Joules unit."
+                        fi
+                        ;;
+                    # Parse LUMI format.
+                    *'Units:'*)
+                        verbose_echo "Parsing LUMI format"
+                        unit=$(printf '%s\n' "$line" |
+                            sed 's/.*Units:[[:space:]]*//; s/[[:space:]]*|.*//')
+                        unit=$(_parse_papi_unit_to_joule_scalar "$unit")
+                        ;;
+                    *)
+                        verbose_echo print_warning "Could not parse unit line.."
+                        ;;
+                esac
             fi
 
             # Detect the end of the event block.
-            if is_event_block_end "$line"; then
+            if _detect_event_block_end "$line"; then
                 # Default units to 1 if none was detected.
                 [ -z "$unit" ] && unit=1
 
