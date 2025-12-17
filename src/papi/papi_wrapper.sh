@@ -52,34 +52,9 @@ _parse_papi_unit_to_joule_scalar() {
 
     case $unit in
     *"^"*)
-        echo "IN SCIENTIFIC NOTATION PARSING" >&2
-        echo "    arg: $unit" >&2
-
-        test=$(split_scientific_notation "$unit")
-        echo "test: $test" >&2
-
-        IFS='
-' read -r base exponent <<EOF
-$(split_scientific_notation "$unit")
-EOF
-        echo "base: $base" >&2
-        echo "exponent: $exponent" >&2
-
-        # # Split "base^exponent"
-        # base=$(printf '%s\n' "$unit" | sed 's/\^.*//')
-        # exponent=$(printf '%s\n' "$unit" | sed 's/.*\^//')
-
-        # # Validate extraction (digits, decimal, optional - sign)
-        # case $base in
-        #     ''|*[!0-9.]*)
-        #         return 1
-        #         ;;
-        # esac
-        # case $exponent in
-        #     ''|*[!0-9-]*|*--*)
-        #         return 1
-        #         ;;
-        # esac
+        splitted=$(split_scientific_notation "$unit")
+        base=${splitted%%$'\n'*}
+        exponent=${splitted#*$'\n'}
 
         # Compute the value using bc
         printf "scale=20; %s^(%s)\n" "$base" "$exponent" |
@@ -113,7 +88,7 @@ _print_papi_event() {
     if [ "$mode" = "events" ]; then
         printf "%s\n" "$event"
     elif [ "$mode" = "units" ]; then
-        ecprintf "%s\n"ho "$unit"
+        printf "%s\n" "$unit"
     else
         printf "%s : %s\n" "$event" "$unit"
     fi
@@ -197,7 +172,7 @@ _parse_papi_native_avail() {
     unit=""
 
     # Loop over all lines of the output.
-    echo "$events" | while IFS= read -r line; do
+    printf '%s\n' "$events" | while IFS= read -r line; do
         # Detect the start of a rapl or cray_pm event block, which is not a
         # UNITS event.
         if _detect_papi_start_event_block "$line"; then
@@ -240,7 +215,6 @@ _parse_papi_native_avail() {
                 case $line in
                     # Parse MN5 format.
                     *'Unit is '*)
-                        verbose_echo "Parsing MN5 format"
                         unit_token=$(printf '%s\n' "$line" |
                             sed 's/.*Unit is[[:space:]]*//; s/[[:space:]]*|.*//')
                         scalar=${unit_token%% *}
@@ -255,7 +229,6 @@ _parse_papi_native_avail() {
                         ;;
                     # Parse LUMI format.
                     *'Units:'*)
-                        verbose_echo "Parsing LUMI format"
                         unit=$(printf '%s\n' "$line" |
                             sed 's/.*Units:[[:space:]]*//; s/[[:space:]]*|.*//')
                         unit=$(_parse_papi_unit_to_joule_scalar "$unit")
