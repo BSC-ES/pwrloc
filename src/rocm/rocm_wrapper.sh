@@ -98,9 +98,9 @@ EOF
         devices=$(array_pop "$devices")
         energy=$(array_get_last "$energies")
         energies=$(array_pop "$energies")
-        printf "GPU %s:\t%s J" "$device" "$energy"
+        printf "GPU %s:\t%s J\n" "$device" "$energy"
         total_energy=$(echo "$total_energy + $energy" | bc -l)
     done
 
-    printf "Total:\t%s J" "$total_energy"
+    printf "Total:\t%s J\n" "$total_energy"
 }
