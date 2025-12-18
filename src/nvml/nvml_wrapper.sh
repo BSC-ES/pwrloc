@@ -27,9 +27,14 @@ nvml_available() {
 }
 
 _compile_nvml_profiler() {
-    # Check if the binary exists, if so remove.
+    # Check if the binary exists.
     if [ -f "$NVML_PROFILER" ]; then
-        rm "$NVML_PROFILER"
+        # If exists, check for executable rights and rebuild if not.
+        if [ -x "$NVML_PROFILER" ]; then
+            return
+        else
+            rm "$NVML_PROFILER"
+        fi
     fi
 
     # Compile the code.

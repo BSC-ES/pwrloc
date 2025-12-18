@@ -28,10 +28,16 @@ papi_available() {
 }
 
 _compile_papi_profiler() {
-    # Check if the binary exists, if so remove.
+    # Check if the binary exists.
     if [ -f "$PAPI_PROFILER" ]; then
-        rm "$PAPI_PROFILER"
+        # If exists, check for executable rights and rebuild if not.
+        if [ -x "$PAPI_PROFILER" ]; then
+            return
+        else
+            rm "$PAPI_PROFILER"
+        fi
     fi
+
 
     # Compile the code.
     if ! cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall; then
