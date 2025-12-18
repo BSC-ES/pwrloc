@@ -25,12 +25,6 @@ UTILSDIR="$SRCDIR/utils"
 # Get the length of a array.
 #   Usage:  array_len <array>
 array_len() {
-    # Sanitize input.
-    if [ -z "$1" ]; then
-        print_error "<array_len> No array passed."
-        return 1
-    fi
-
     # Get number of elements by separating string using RS='\n'.
     printf '%s' "$1" | awk 'length($0) > 0 { n++ } END { print n+0 }'
 }
