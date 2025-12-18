@@ -25,10 +25,11 @@ Currently, pwrloc supports the following energy profiling tools:
 Usage: ./pwrloc.sh [-l] [-p profiler] [-v] [--] [bin] [args]
 
 Options:
-  -l            List availability of the supported profilers
-  -p profiler   Profile using provided profiler
-  -v            Enable verbose mode
-  -h            Show this help message and exit
+  -h            Show this help message and exit.
+  -l            List availability of the supported profilers.
+  -p profiler   Profile using provided profiler.
+  -t            Run test suite.
+  -v            Enable verbose mode.
 
 Application:
   [bin] [args]  Application (with arguments) to profile.

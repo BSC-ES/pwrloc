@@ -1,13 +1,16 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This wrapper contains functions for interacting with the ROCM energy
 # profiling module for AMD GPUs.
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-ROCMDIR="$BASEDIR/rocm"
+ROCMDIR="$SRCDIR/rocm"
 . "$ROCMDIR/../utils/energy_utils.sh"
 . "$ROCMDIR/../utils/general_utils.sh"
 . "$ROCMDIR/../utils/print_utils.sh"
+. "$PAPIDIR/../utils/array_utils.sh"
+
 
 # Returns 0 if papi is available, 1 otherwise.
 rocm_available() {
@@ -25,10 +28,15 @@ rocm_available() {
 
 # Get a ROCM power measurement for non-N/A cards.
 _get_rocm_power_measurement() {
-    rocm-smi --showpower --csv | tail -n +2 | head -n -1 | while IFS=',' read -r device power; do
-        if [[ "$power" != "N/A"* ]]; then
-            echo "$device $power"
-        fi
+    rocm-smi --showpower --csv \
+    | tail -n +2 \
+    | head -n -1 \
+    | while IFS=',' read -r device power; do
+        # Skip N/A value.
+        case $power in
+            N/A*) ;;
+            *) printf '%s %s\n' "$device" "$power" ;;
+        esac
     done
 }
 
@@ -41,50 +49,58 @@ rocm_profile() {
     fi
 
     # Make sure that the cards are ready for power sampling.
-    local sample
     sample=$(rocm-smi --showpower 2>&1)
     if echo "$sample" | grep -q "ERROR:root:Driver not initialized"; then
         print_error "Failed to sample GPU power, are you on a compute node?"
         return 1
     fi
 
-    # Initialize arrays for trackig energy consumption.
-    local devices=()
-    local energy=()
-    local i=0
-    while read -r device power; do
-        devices[i]="$device"
-        energy[i]=0
-        ((i++))
-    done < <(_get_rocm_power_measurement)
+    # Initialize arrays for trackig energy consumption over time.
+    devices=""
+    energies=""
+    while IFS=' ' read -r device power; do
+        devices=$(array_push "$devices" "$device")
+        energies=$(array_push "$energies" "0")
+    done <<EOF
+$(_get_rocm_power_measurement)
+EOF
 
     # Launch the application and store PID for tracking.
     "$@" &
-    local child_pid=$!
+    child_pid=$!
     verbose_echo print_info "Application PID: $child_pid"
 
     # Poll with a set frequency until the child process is finished.
-    local poll_time_s=0.2
-    local watts=0.0
+    poll_time_s=0.2
 
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
-        while read -r device power; do
+        while IFS=' ' read -r device power; do
             watts="$power"
             energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
-            energy[i]=$(echo "${energy[i]} + $energy_consumed" | bc -l)
-            ((i++))
-        done < <(_get_rocm_power_measurement)
+            cur_energy=$(array_get "$energies" "$i")
+            energies=$(array_set "$energies" "$i" \
+                "$(echo "$cur_energy + $energy_consumed" | bc -l)")
+            i=$((i+1))
+        done <<EOF
+$(_get_rocm_power_measurement)
+EOF
 
         # Poll with a fixed frequency.
         sleep $poll_time_s
     done
 
     # Report energy consumption per GPU and in total
-    local total_energy=0.0
-    for i in "${!devices[@]}"; do
-        echo -e "GPU ${devices[i]}:\t${energy[i]} J"
-        total_energy=$(echo "$total_energy + ${energy[i]}" | bc -l)
+    total_energy=0.0
+
+    while [ "$(array_len "$devices")" -ne 0 ]; do
+        device=$(array_get_last "$devices")
+        devices=$(array_pop "$devices")
+        energy=$(array_get_last "$energies")
+        energies=$(array_pop "$energies")
+        printf "GPU %s:\t%s J\n" "$device" "$energy"
+        total_energy=$(echo "$total_energy + $energy" | bc -l)
     done
-    echo -e "Total:\t${energy[i]} J"
+
+    printf "Total:\t%s J\n" "$total_energy"
 }

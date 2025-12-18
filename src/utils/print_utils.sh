@@ -1,13 +1,14 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # Utils functions related to printing.
 # ------------------------------------------------------------------------------
 
 # Color codes for print_*() functions.
-COLOR_RESET='\033[0m'      # Reset to default color
-COLOR_INFO='\033[1;34m'    # Blue
-COLOR_SUCCESS='\033[1;32m' # Green
-COLOR_WARNING='\033[1;33m' # Yellow
-COLOR_ERROR='\033[1;31m'   # Red
+COLOR_RESET='\033[0m'       # Reset to default color
+COLOR_INFO='\033[1;34m'     # Blue
+COLOR_SUCCESS='\033[1;32m'  # Green
+COLOR_WARNING='\033[1;33m'  # Yellow
+COLOR_ERROR='\033[1;31m'    # Red
 
 # Info message.
 print_info() {
@@ -50,7 +51,7 @@ verbose_echo() {
     fi
 }
 
-# Print the given sequence repeated in full terminal width or 80 characters.
+# Print the given string repeated in full terminal width or 80 characters.
 print_full_width() {
     # Return if no character was provided.
     if [ $# -eq 0 ]; then
@@ -58,7 +59,6 @@ print_full_width() {
     fi
 
     # Set width for printing.
-    local max_width term_width
     max_width=80
     term_width=$(tput cols 2>/dev/null || echo $max_width)
     [ "$term_width" -gt "$max_width" ] && term_width=$max_width
@@ -67,11 +67,47 @@ print_full_width() {
     printf '%*s\n' "$term_width" '' | tr ' ' "$1"
 }
 
+# Print the given string centered in full terminal width or 80 characters.
+print_centered() {
+    # Return if no character was provided.
+    if [ $# -eq 0 ]; then
+        return
+    fi
+
+    max_width=80
+    text=$1
+
+    # Set width for printing.
+    term_width=$(tput cols 2>/dev/null || echo "$max_width")
+    [ "$term_width" -gt "$max_width" ] && term_width=$max_width
+
+    # Get the length of the text.
+    text_len=$(printf '%s' "$text" | wc -c)
+
+    # Just print the text if longer than the terminal width.
+    if [ "$text_len" -ge "$term_width" ]; then
+        printf '%s\n' "$text"
+        return
+    fi
+
+    # Compute the left padding: floor((term_width - text_len) / 2)
+    padding=$(( term_width - text_len ))
+    left_pad=$(( padding / 2 ))
+
+    # Print left padding + text.
+    printf '%*s%s\n' "$left_pad" '' "$text"
+}
+
 # Transform boolean numbers into text.
 bool_to_text() {
-    if [[ "$1" -eq "0" ]]; then
+    if [ "$1" -eq 0 ]; then
         printf "TRUE\n"
     else
         printf "FALSE\n"
     fi
+}
+
+# Print the given argument. Used for array_foreach.
+print_argument() {
+    printf '%s\n' "$1"
 }

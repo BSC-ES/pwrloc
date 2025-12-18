@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # Utils related to energy and power.
 # ------------------------------------------------------------------------------
@@ -5,7 +6,6 @@
 # Convert a SLURM ConsumedEnergy string (e.g. "123.45K") to integer joules.
 convert_to_joules() {
     # Strip whitespace
-    local string
     string=$(printf "%s" "$1" | tr -d ' ')
 
     # Catch empty lines.
@@ -15,7 +15,6 @@ convert_to_joules() {
     fi
 
     # Separate numeric value and unit
-    local num unit mult
     num=$(printf "%s" "$string" | sed 's/[KMG]$//')
     unit=$(printf "%s" "$string" | sed 's/^[0-9.]*//')
 
@@ -37,23 +36,22 @@ convert_to_joules() {
 
 # Convert integer joules into human readable unit (J, K, M, G).
 convert_from_joules() {
-    local joules="$1"
+    joules="$1"
 
     if [ "$joules" -ge 1000000000 ]; then
-        local unit="G"
-        local divisor=1000000000
+        unit="G"
+        divisor=1000000000
     elif [ "$joules" -ge 1000000 ]; then
-        local unit="M"
-        local divisor=1000000
+        unit="M"
+        divisor=1000000
     elif [ "$joules" -ge 1000 ]; then
-        local unit="K"
-        local divisor=1000
+        unit="K"
+        divisor=1000
     else
-        local unit=""
-        local divisor=1
+        unit=""
+        divisor=1
     fi
 
-    local value
     value=$(echo "scale=2; $joules / $divisor" | bc)
     printf "%s %sJ" "$value" "$unit"
 }

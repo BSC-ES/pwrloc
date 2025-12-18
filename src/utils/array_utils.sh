@@ -1,86 +1,103 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
-# An POSIX compliant array implementation that allows for a minimal set of
-# operations.
+# A POSIX compliant array implementation that allows for a minimal set of
+# operations. Arrays are indexed from 0 and are represented as newline-separated
+# strings. Thus creating a new array is simply creating an empty string. Note
+# that elements of the array cannot be only whitespace (e.g. space, tab,
+# newline).
+#
+# Syntax:
+#   - Get array length:             array_len <array>
+#   - Add value to top:             array_push <array> <value>
+#   - Delete and export top value:  array_pop <array>
+#   - Get last value:               array_get_last <array>
+#   - Get the value at a index:     array_get <array> <index>
+#   - Set the value at a index:     array_set <array> <index> <new_value>
+#   - Delete array value:           array_delete <array> <index>
+#   - Foreach over values:          array_foreach <array> <command>
 # ------------------------------------------------------------------------------
 
 # Get the directory where this file is located to load dependencies.
-UTILSDIR="$BASEDIR/utils"
+UTILSDIR="$SRCDIR/utils"
 . "$UTILSDIR/print_utils.sh"
 
-ARRAY_PREFIX="__array__"
 
-# Check if a given array already exists.
-#   Usage:  array_exists <array_name>
-array_exists() {
-    # Sanitize input.
-    if [ -z "$1" ]; then
-        print_error "<array_exists> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_exists> Array name is not alphanumerical."
-        return 1
-    fi
-
-    # Check if the array has a length variable.
-    eval "val=\${${ARRAY_PREFIX}${1}_len+set}"
-    [ "${val}" = "set" ]
+# Get the length of a array.
+#   Usage:  array_len <array>
+array_len() {
+    # Get number of elements by separating string using RS='\n'.
+    printf '%s' "$1" | awk 'length($0) > 0 { n++ } END { print n+0 }'
 }
 
-# Sets an array value.
-#   Usage:    array_create <array_name>
-array_create() {
-    # Sanitize input.
-    if [ -z "$1" ]; then
-        print_error "<array_create> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_create> Array name is not alphanumerical."
-        return 1
-    fi
-
-    # Make sure array does not exist yet.
-    if array_exists "$1"; then
-        print_warning "<array_create> Array already exists, ignoring.."
-        return 1
-    fi
-
-    # Set length variable to indicate existence.
-    eval "${ARRAY_PREFIX}$1_len=0"
-}
-
-# Push an array value.
-#   Usage:    array_push <array_name> <value>
+# Push a value to the top of the array.
+#   Usage:    array_push <array> <value>
 array_push() {
     # Sanitize input.
-    if [ -z "$1" ]; then
-        print_error "<array_push> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_push> Array name is not alphanumerical."
-        return 1
-    elif [ -z "$2" ]; then
+    if [ -z "$2" ]; then
         print_error "<array_push> No value passed."
         return 1
-    elif ! is_alphanumerical "$2"; then
-        print_error "<array_push> Value is not alphanumerical."
+    elif is_whitespace "$2"; then
+        print_warning "<array_push> Value is empty! Ignoring.."
         return 1
     fi
 
-    # Push the value on len+1.
-    eval "i=\${${ARRAY_PREFIX}$1_len}"
-    eval "${ARRAY_PREFIX}$1_$i=\$2"
-    eval "${ARRAY_PREFIX}$1_len=\$((i + 1))"
+    # Strip input from whitespaces, tabs, and newlines.
+    clean_str=$(strip_whitespace "$2")
+
+    # Push the value to the string and print.
+    # Ignore the given string if it's empty.
+    if [ -n "$1" ]; then
+        printf '%s\n%s' "$1" "$clean_str"
+    else
+        printf '%s' "$clean_str"
+    fi
 }
 
-# Gets an array value.
-#   Usage:    array_get <array_name> <index>
+# Deletes the last array value and pritns the remaining array.
+#   Usage:    array_pop <array>
+array_pop() {
+    # Sanitize input.
+    if [ -z "$1" ]; then
+        print_error "<array_pop> No array passed."
+        return 1
+    fi
+
+    # Get and remove the last element.
+    printf '%s' "$1" | awk '
+        {
+            # Print previous line if not empty.
+            if (length(prev) > 0) print prev
+            # Store current line as previous.
+            prev = $0
+        }
+        END {
+            # do not print the last non-empty line, which is what we remove.
+        }
+    '
+}
+
+# Gets the last array value.
+#   Usage:    array_get_last <array>
+array_get_last() {
+    # Sanitize input.
+    if [ -z "$1" ]; then
+        print_error "<array_get> No array passed."
+        return 1
+    fi
+
+    # Print only last element.
+    printf '%s\n' "$1" | awk '
+        length($0) { last = $0 }
+        END { if (length(last)) print last }
+    '
+}
+
+# Gets the array value at the provided index.
+#   Usage:    array_get <array> <index>
 array_get() {
     # Sanitize input.
     if [ -z "$1" ]; then
-        print_error "<array_get> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_get> Value is not alphanumerical."
+        print_error "<array_get> No array passed."
         return 1
     elif [ -z "$2" ]; then
         print_error "<array_get> No index passed."
@@ -90,35 +107,60 @@ array_get() {
         return 1
     fi
 
-    # Print array value at given index.
-    eval "printf '%s\\n' \${${ARRAY_PREFIX}$1_$2}"
+    # Convert the 0-based index to 1-based.
+    idx=$(( $2 + 1 ))
+
+    # Print only the requested line.
+    printf '%s\n' "$1" | awk -v idx="$idx" '
+        NR == idx {
+            print
+            exit
+        }
+    '
 }
 
-# Get the length of an array.
-#   Usage:  array_len <array_name>
-array_len() {
+# Sets the array value at the provided index.
+#   Usage:    array_set <array> <index> <new_value>
+array_set() {
     # Sanitize input.
     if [ -z "$1" ]; then
-        print_error "<array_len> No array name passed."
+        print_error "<array_set> No array passed."
         return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_len> Array name is not alphanumerical."
+    elif [ -z "$2" ]; then
+        print_error "<array_set> No index passed."
+        return 1
+    elif ! is_numerical "$2"; then
+        print_error "<array_set> Index is not numerical."
+        return 1
+    elif [ -z "$3" ]; then
+        print_error "<array_set> No new value passed."
+        return 1
+    elif is_whitespace "$3"; then
+        print_warning "<array_set> New value is empty! Ignoring.."
         return 1
     fi
 
-    # Print length of array.
-    eval "printf '%s\\n' \${${ARRAY_PREFIX}$1_len}"
+    # Convert the 0-based index to 1-based.
+    idx=$(( $2 + 1 ))
+
+    # Rebuild the string, replacing the idx-th line
+    printf '%s\n' "$1" | awk -v idx="$idx" -v val="$3" '
+        # Replace the value at the given index.
+        NR == idx {
+            print val
+            next
+        }
+        # Print the element normally otherwise.
+        { print }
+    '
 }
 
-# Deletes an array value.
-#   Usage:    array_delete <array_name> <index>
+# Deletes a array value at the given index.
+#   Usage:    array_delete <array> <index>
 array_delete() {
     # Sanitize input.
     if [ -z "$1" ]; then
-        print_error "<array_delete> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_delete> Array name is not alphanumerical."
+        print_error "<array_delete> No array passed."
         return 1
     elif [ -z "$2" ]; then
         print_error "<array_delete> No index passed."
@@ -128,57 +170,30 @@ array_delete() {
         return 1
     fi
 
-    # Get current length and index for checks.
-    local len idx i j val
-    eval "len=\${${ARRAY_PREFIX}$1_len}"
-    idx=$2
+    # Convert the 0-based index to 1-based.
+    idx=$(( $2 + 1 ))
 
-    # Bounds check.
-    if [ "$idx" -lt 0 ] || [ "$idx" -ge "$len" ]; then
-        print_error "<array_delete> Index out of range"
-        return 1
-    fi
-
-    # Shift all elements left from idx+1.
-    i=$idx
-    while [ "$i" -lt $((len - 1)) ]; do
-        j=$((i + 1))
-        eval "val=\${${ARRAY_PREFIX}$1_\$j}"
-        eval "${ARRAY_PREFIX}$1_$i=\"\$val\""
-        i=$((i + 1))
-    done
-
-    # Unset last element.
-    eval "unset ${ARRAY_PREFIX}$1_$((len - 1))"
-
-    # Update length.
-    eval "${ARRAY_PREFIX}$1_len=\$((len - 1))"
+    # Rebuild the string, replacing the idx-th line
+    printf '%s\n' "$1" | awk -v idx="$idx" '
+        # Print everything except the value at the given index.
+        NR != idx { print }
+    '
 }
 
-# Iterate over all elements and execute given command.
-#   Usage:    array_foreach <array_name> <command>
+# Iterate over all array elements and execute given command.
+#   Usage:    array_foreach <array> <command>
 array_foreach() {
     # Sanitize input.
     if [ -z "$1" ]; then
-        print_error "<array_foreach> No array name passed."
-        return 1
-    elif ! is_alphanumerical "$1"; then
-        print_error "<array_foreach> Array name is not alphanumerical."
+        print_error "<array_foreach> No array passed."
         return 1
     elif [ -z "$2" ]; then
         print_error "<array_foreach> No command passed."
         return 1
-    elif ! is_alphanumerical "$2"; then
-        print_error "<array_foreach> Command is not alphanumerical."
-        return 1
     fi
 
-    # Get array length and loop over items.
-    eval "len=\${${ARRAY_PREFIX}$1_len}"
-    i=0
-    while [ "$i" -lt "$len" ]; do
-        eval "val=\${${ARRAY_PREFIX}$1_$i}"
-        eval "$2 \"\$val\""
-        i=$((i + 1))
+    printf '%s\n' "$1" | while IFS= read -r line; do
+        # Call the provided function with the line as argument
+        "$2" "$line"
     done
 }

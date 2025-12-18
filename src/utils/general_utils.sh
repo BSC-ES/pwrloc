@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # ------------------------------------------------------------------------------
 # This file contains common utils to be used.
 # ------------------------------------------------------------------------------
@@ -7,39 +8,71 @@ function_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Check if the provided string only contains whitespaces, tabs, or newlines.
+#   Usage:  is_whitespace <input>
+is_whitespace() {
+    printf '%s' "$1" | awk '
+        /[^[:space:]]/ { found = 1 }
+        END { exit found ? 1 : 0 }
+    '
+}
+
+# Strip whitespaces, tabs, or newlines from the input string.
+#   Usage:  strip_whitespace <input>
+strip_whitespace() {
+    printf '%s' "$1" | awk '
+    {
+        if (length($0)) {
+            if (length(prev)) print prev
+            prev = $0
+        } else {
+            if (length(prev)) print prev
+            prev = ""
+        }
+    }
+    END {
+        if (length(prev)) print prev
+    }'
+}
+
 # Check if the provided number is numerical.
 #   Usage:  is_numerical <input>
 is_numerical() {
     case "$1" in
         # Reject empty strings or invalid characters.
         *[!0-9.+-]* | '') return 1 ;;
-        # March floats.
+        # Match floats.
         *.*)
-            # Valid patterns:
-            #   [+|-]digits.digits
-            #   [+|-]digits.
-            #   [+|-].digits
+            # Parse unsigned floats.
+            case "$1" in
+                [0-9]*.[0-9]*) return 0 ;;
+            esac
+
+            # Parse signed floats.
             case "$1" in
                 [+-]*[0-9]*.[0-9]*) return 0 ;;
-                *) return 1 ;;
             esac
+
+            # Default behavior when there are no matches.
+            return 1
             ;;
         # Match ints.
         *)
             case "$1" in
-                [+-]*[0-9]*) return 0 ;;
+                [+-][0-9]* | [0-9]*) return 0 ;;
                 *) return 1 ;;
             esac
             ;;
     esac
 }
 
-# Check if given string consists of only alphanumeric characters.
+# Check if given string consists of only alphanumeric characters, including:
+# '_', and '/'.
 #   Usage:  is_alphanumerical <input>
 is_alphanumerical() {
     case "$1" in
-        # Reject empty strings or invalid characters.
-        *[!A-Za-z0-9_\/]* | '') return 1 ;;
+        # Reject characters not in whitelist and empty strings.
+        *[!A-Za-z0-9_/:=\ \'%\\-]* | '') return 1 ;;
         *) return 0 ;;
     esac
 }
@@ -63,9 +96,6 @@ is_scientific() {
 
 # Get the base and exponent of a scientific notation.
 split_scientific_notation() {
-    local base
-    local exp
-
     # Get and return base and exponent.
     case $1 in
         # Detect caret-style notation.
@@ -91,4 +121,15 @@ split_scientific_notation() {
             return 1
             ;;
     esac
+}
+
+# Zip the items of two newline-separated strings which are of the same length.
+#   Usage:      zip_strings <list_1> <list_2>
+zip_strings() {
+    tmp1=$(mktemp)
+    tmp2=$(mktemp)
+    printf '%s\n' "$1" > "$tmp1"
+    printf '%s\n' "$2" > "$tmp2"
+    paste -d ' ' "$tmp1" "$tmp2"
+    rm -f "$tmp1" "$tmp2"
 }
