@@ -60,7 +60,7 @@ _get_energy_consumed() {
     perf_stat_events=$(echo "$perf_stat_events" | tr '\n' ' ')
 
     # Profile the binary with perf and store in stdout.
-    perf_out=$(perf stat $perf_stat_events -- $@ 2>&1)
+    perf_out=$(perf stat $perf_stat_events -- "$@" 2>&1)
 
     # Throw warning in verbose mode if perf signifies not supported.
     if printf "%s\n" "$perf_out" | grep -q 'Workload failed'; then
