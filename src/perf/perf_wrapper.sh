@@ -62,6 +62,11 @@ _get_energy_consumed() {
     # Profile the binary with perf and store in stdout.
     perf_out=$(perf stat $perf_stat_events -- $@ 2>&1)
 
+    # Throw warning in verbose mode if perf signifies not supported.
+    if printf "%s\n" "$perf_out" | grep -q 'Workload failed'; then
+        verbose_echo print_error "Workload failed. Is the program available?"
+    fi
+
     # Extract the energy values from the perf output.
     energy=$(echo "$perf_out" | sed -n 's/^\(.*\) Joules.*/\1/p')
 
@@ -84,7 +89,7 @@ _sanitize_energy_values() {
     # Replace any non-numerical items with 0 as fallback.
     printf '%s\n' "$energy_input" \
     | while IFS= read -r line; do
-        if is_numerical "$line"; then
+        if is_numerical "$line" || [ "$line" = "<not supported>" ]; then
             printf '%s\n' "$line"
         else
             printf '0\n'
@@ -97,7 +102,7 @@ _sanitize_energy_values() {
 #   !! This function should only be called by rank 0. !!
 _gather_results() {
     tmp_dir="$1"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:1}}}
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
     file_count=0
 
     # Wait for all files to appear.
@@ -127,7 +132,15 @@ EOF
         j=0
         while IFS= read -r line; do
             cur_energy=$(array_get "$perf_total_energy" "$j")
-            perf_total_energy=$(array_set "$perf_total_energy" "$j" "$(echo "$cur_energy + $line" | bc -l)")
+
+            # Check for "<not supported>", and simply overwrite if so.
+            if [ "$line" = "<not supported>" ]; then
+                perf_total_energy=$(array_set "$perf_total_energy" "$j" "$line")
+            else
+                perf_total_energy=$(array_set "$perf_total_energy" "$j" \
+                    "$(echo "$cur_energy + $line" | bc -l)")
+            fi
+
             j=$((j + 1))
         done <<EOF
 $energy_input
@@ -184,7 +197,11 @@ EOF
         # Print events with collected values side by side.
         zip_strings "$events" "$energy_total" |
         while IFS=' ' read -r event energy; do
-            printf "%-${max_len}s %s J\n" "$event" "$energy"
+            if [ "$energy" = "<not supported>" ]; then
+                printf "%-${max_len}s  <not supported>\n" "$event"
+            else
+                printf "%-${max_len}s  %s J\n" "$event" "$energy"
+            fi
         done
     fi
 }
