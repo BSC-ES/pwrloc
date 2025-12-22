@@ -58,11 +58,11 @@ show_profilers() {
 
     # Fetch and print PERF variables.
     perf_avail=$(perf_available)
-    perf_events=$(perf_events)
+    perf_events=$(perf_get_status_energy_events)
     printf "========== PERF ===========\n"
     printf "perf_avail: %s\n" "$(bool_to_text "$perf_avail")"
     printf "%s\n" "perf_events:"
-    printf "%s\n" "$perf_events" | awk '{print "\t" $0}'
+    printf "%s\n" "$perf_events" | awk '{print "\t" $1 "\t" $2 " " $3}'
     printf "\n"
 
     # Fetch and print PAPI variables.
