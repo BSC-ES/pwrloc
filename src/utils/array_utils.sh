@@ -36,9 +36,10 @@ array_push() {
     if [ -z "$2" ]; then
         print_error "<array_push> No value passed."
         return 1
-    elif is_whitespace "$2"; then
-        print_warning "<array_push> Value is empty! Ignoring.."
-        return 1
+        # TODO: Clean up.
+    # elif is_whitespace "$2"; then
+    #     print_warning "<array_push> Value is empty! Ignoring.."
+    #     return 1
     fi
 
     # Strip input from whitespaces, tabs, and newlines.

@@ -28,6 +28,7 @@ Options:
   -h            Show this help message and exit.
   -l            List availability of the supported profilers.
   -p profiler   Profile using provided profiler.
+  -a mode       MPI aggregation mode: "concatenate" (default) or "combine".
   -t            Run test suite.
   -v            Enable verbose mode.
 

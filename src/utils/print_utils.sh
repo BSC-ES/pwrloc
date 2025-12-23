@@ -53,29 +53,37 @@ verbose_echo() {
 
 # Print the given string repeated in full terminal width or 80 characters.
 print_full_width() {
-    # Return if no character was provided.
-    if [ $# -eq 0 ]; then
-        return
+    # Return if no text was provided.
+    [ $# -eq 0 ] && return
+    text=$1
+
+    # Interpret the 2nd argument as max length, if provided.
+    if [ -n "$2" ] && is_numerical "$2"; then
+        max_width="$2"
+    else
+        max_width=80
     fi
 
     # Set width for printing.
-    max_width=80
     term_width=$(tput cols 2>/dev/null || echo $max_width)
     [ "$term_width" -gt "$max_width" ] && term_width=$max_width
 
     # Print in terminal width.
-    printf '%*s\n' "$term_width" '' | tr ' ' "$1"
+    printf '%*s\n' "$term_width" '' | tr ' ' "$text"
 }
 
 # Print the given string centered in full terminal width or 80 characters.
 print_centered() {
-    # Return if no character was provided.
-    if [ $# -eq 0 ]; then
-        return
-    fi
-
-    max_width=80
+    # Return if no text was provided.
+    [ $# -eq 0 ] && return
     text=$1
+
+    # Interpret the 2nd argument as max length, if provided.
+    if [ -n "$2" ] && is_numerical "$2"; then
+        max_width="$2"
+    else
+        max_width=80
+    fi
 
     # Set width for printing.
     term_width=$(tput cols 2>/dev/null || echo "$max_width")
