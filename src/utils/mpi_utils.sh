@@ -17,6 +17,16 @@ UTILSDIR="$SRCDIR/utils"
 _aggregate_concatenate() {
     mpi_total_array="$1"
     dtype="$2"
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
+    # Setup array with data from rank 0.
+    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    mpi_total_array=""
+    while IFS= read -r line; do
+        mpi_total_array=$(array_push "$mpi_total_array" "$line")
+    done <<EOF
+$rank0_data
+EOF
 
     # Aggregate the collected values of all ranks.
     i=1
@@ -46,6 +56,16 @@ EOF
 _aggregate_combine() {
     mpi_total_array="$1"
     dtype="$2"
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
+    # Setup array with data from rank 0.
+    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    mpi_total_array=""
+    while IFS= read -r line; do
+        mpi_total_array=$(array_push "$mpi_total_array" "$line")
+    done <<EOF
+$rank0_data
+EOF
 
     # Aggregate the collected values of all ranks.
     i=1
@@ -119,15 +139,6 @@ _gather_ranks() {
         sleep 0.5
     done
 
-    # Merge the energy logs into one string, starting by own file.
-    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
-    mpi_total_array=""
-    while IFS= read -r line; do
-        mpi_total_array=$(array_push "$mpi_total_array" "$line")
-    done <<EOF
-$rank0_data
-EOF
-
     # Aggregate through addition if mode is combine, otherwise concatenate.
     if [ "$mode" = "combine" ]; then
         mpi_total_array=$(_aggregate_combine "$mpi_total_array")
@@ -159,11 +170,11 @@ mpi_gather() {
     if [ "$job" != "<NO JOB>" ]; then
         tmp_dir="tmp.$job"
         mkdir -p "$tmp_dir"
-        printf "%s\n" "$energy" >"$tmp_dir/rank_$rank.out"
+        printf "%s\n" "$energy" >"$tmp_dir/rank_${rank}_energy.out"
 
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then
-            printf "%s\n" "$energy" >"$tmp_dir/rank_${rank}_labels.out"
+            printf "%s\n" "$labels" >"$tmp_dir/rank_${rank}_labels.out"
         fi
     fi
 
@@ -189,7 +200,7 @@ mpi_gather() {
 
         # Print header for energy measurements.
         print_full_width "=" "22"
-        print_centered "Energy Consumption"
+        print_centered "Energy Consumption" "22"
         print_full_width "=" "22"
 
         # Print labels with collected values side by side.
