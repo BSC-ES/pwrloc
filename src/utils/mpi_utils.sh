@@ -196,24 +196,29 @@ mpi_gather() {
         fi
 
         # Find the longest label name for aligned printing.
-        max_len=$(get_max_len "$labels")
+        max_label_len=$(get_max_len "$labels")
+
+        # Compute width of longest line, and cap on 80 characters.
+        max_energy_len=$(get_max_len "$energy")
+        max_window_width=$((max_label_len + max_energy_len + 4))
+        [ "$max_window_width" -gt "80" ] && max_window_width=80
 
         # Print header for energy measurements.
-        print_full_width "=" "22"
-        print_centered "Energy Consumption" "22"
-        print_full_width "=" "22"
+        print_full_width "=" "$max_window_width"
+        print_centered "Energy Consumption" "$max_window_width"
+        print_full_width "=" "$max_window_width"
 
         # Print labels with collected values side by side.
         zip_strings "$labels" "$energy_total" |
         while IFS=' ' read -r event energy; do
             if is_numerical "$energy"; then
-                printf "%-${max_len}s  %s J\n" "$event" "$energy"
+                printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
             else
-                printf "%-${max_len}s  %s\n" "$event" "$energy"
+                printf "%-${max_label_len}s  %s\n" "$event" "$energy"
             fi
         done
 
         # Print footer for energy measurements.
-        print_full_width "=" "22"
+        print_full_width "=" "$max_window_width"
     fi
 }
