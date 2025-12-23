@@ -58,9 +58,9 @@ _parse_papi_unit_to_joule_scalar() {
 
     case $unit in
     *"^"*)
-        splitted=$(split_scientific_notation "$unit")
-        base=${splitted%%$'\n'*}
-        exponent=${splitted#*$'\n'}
+        split=$(split_scientific_notation "$unit")
+        base=${split%%$'\n'*}
+        exponent=${split#*$'\n'}
 
         # Compute the value using bc
         printf "scale=20; %s^(%s)\n" "$base" "$exponent" |
@@ -227,7 +227,7 @@ _parse_papi_native_avail() {
                         unit=${unit_token#* }
 
                         # Print warning if unit is not Joules.
-                        if [ "$unit" == "Joules" ]; then
+                        if [ "$unit" = "Joules" ]; then
                             unit=$(_parse_papi_unit_to_joule_scalar "$scalar")
                         else
                             verbose_echo print_warning "Unit line did not have Joules unit."

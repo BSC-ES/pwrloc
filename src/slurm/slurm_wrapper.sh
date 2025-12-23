@@ -84,7 +84,8 @@ _slurm_get_energy_consumed() {
     verbose_values=$(
         sacct -j "$jobid" --format=JobId%25,JobName%25,ConsumedEnergy,Elapsed
     )
-    verbose_echo print_info "Energy measurements:\n$verbose_values\n"
+    verbose_echo print_info "Energy measurements:$verbose_values"
+    verbose_echo print_info "$verbose_values"
 
     # Loop through the collected values and save the maximum.
     max_joules=0

@@ -133,3 +133,17 @@ zip_strings() {
     paste -d ' ' "$tmp1" "$tmp2"
     rm -f "$tmp1" "$tmp2"
 }
+
+# Find the longest element from newline-separated string.
+#   Usage:      get_max_len <input>
+get_max_len() {
+    string="$1"
+    max_len=0
+    while IFS= read -r element; do
+        len=$(printf '%s' "$element" | wc -c)
+        [ "$len" -gt "$max_len" ] && max_len=$len
+    done <<EOF
+$string
+EOF
+    printf "%s\n" "$max_len"
+}
