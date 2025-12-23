@@ -31,13 +31,10 @@ EOF
     # Aggregate the collected values of all ranks.
     i=1
     while [ "$i" -lt "$num_ranks" ]; do
-        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
-
         # Aggregate the values of this rank for each event.
-        j=0
+        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
-            j=$((j + 1))
         done <<EOF
 $rank_input
 EOF
@@ -165,6 +162,7 @@ mpi_gather() {
     # Get job and rank ID for temporary files.
     job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
     rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
 
     # Only write tmp files if job detected.
     if [ "$job" != "<NO JOB>" ]; then
@@ -209,13 +207,22 @@ mpi_gather() {
         print_full_width "=" "$max_window_width"
 
         # Print labels with collected values side by side.
+        i=0
         zip_strings "$labels" "$energy_total" |
         while IFS=' ' read -r event energy; do
+            # Add headers for each rank if in concatenate mode.
+            if [ "$mode" = "concatenate" ] && [ $((i % num_ranks)) -eq 0 ]; then
+                printf "\nRank %s:\n" $((i / num_ranks))
+            fi
+
+            # Omit Joules postfix if value not numerical.
             if is_numerical "$energy"; then
                 printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
             else
                 printf "%-${max_label_len}s  %s\n" "$event" "$energy"
             fi
+
+            i=$((i + 1))
         done
 
         # Print footer for energy measurements.
