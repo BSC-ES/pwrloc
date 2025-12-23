@@ -27,6 +27,7 @@ Options:
   -h            Show this help message and exit.
   -l            List availability of the supported profilers.
   -p profiler   Profile using provided profiler.
+  -a mode       MPI aggregation mode: "concatenate" (default) or "combine".
   -t            Run test suite.
   -v            Enable verbose mode.
 
@@ -98,6 +99,7 @@ show_setup() {
     verbose_echo "profiler = $profiler"
     verbose_echo "bin = $bin"
     verbose_echo "args = $args"
+    verbose_echo "MPI mode = $MPI_MODE"
     verbose_echo "======== END SETUP ========"
 }
 
@@ -111,7 +113,7 @@ main() {
     profiler=""
 
     # Parse options.
-    while getopts ":p:hltv" opt; do
+    while getopts ":p:a:hltv" opt; do
         case "$opt" in
             h)
                 show_help
@@ -122,17 +124,29 @@ main() {
                 exit 0
                 ;;
             p) profiler="$OPTARG" ;;
+            a)
+                case $OPTARG in
+                    concatenate|combine)
+                        MPI_MODE=$OPTARG
+                        ;;
+                    *)
+                        printf "Invalid MPI aggregation mode (-a): '%s'\n" \
+                            "$OPTARG" >&2
+                        exit 1
+                        ;;
+                esac
+                ;;
             t)
                 run_test_suite
                 exit 0
                 ;;
             v) export VERBOSE=1 ;;
             :)
-                echo "Option -$OPTARG requires an argument." >&2
+                printf "Option -%s requires an argument.\n" "$OPTARG" >&2
                 exit 1
                 ;;
             \?)
-                echo "Invalid option: -$OPTARG" >&2
+                printf "Invalid option: -%s\n" "$OPTARG" >&2
                 exit 1
                 ;;
         esac
@@ -208,10 +222,11 @@ main() {
             rocm_profile "$bin" "$args"
             ;;
         "") # Variable not set.
+            printf "No profiler selected (-p).\n"
             ;;
         *)
-            echo "Invalid profiler: $profiler"
-            echo "Valid profilers: slurm|perf|papi|nvml|rocm"
+            printf "Invalid profiler: %s\n" "$profiler"
+            printf "Valid profilers: slurm|perf|papi|nvml|rocm\n"
             exit 1
             ;;
     esac
