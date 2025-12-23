@@ -206,6 +206,7 @@ mpi_gather() {
         # Print header for energy measurements.
         print_full_width "=" "$max_window_width"
         print_centered "Energy Consumption" "$max_window_width"
+        print_centered "by pwrloc" "$max_window_width"
         print_full_width "=" "$max_window_width"
 
         # Print labels with collected values side by side.
@@ -215,7 +216,8 @@ mpi_gather() {
             # Add headers for each rank if in concatenate mode.
             if [ "$mode" = "concatenate" ] \
             && [ $((i % items_per_rank)) -eq 0 ]; then
-                printf "\nRank %s:\n" $((i / items_per_rank))
+                [ $((i / items_per_rank)) -gt 0 ] && printf "\n"
+                printf "Rank %s:\n" $((i / items_per_rank))
             fi
 
             # Omit Joules postfix if value not numerical.
