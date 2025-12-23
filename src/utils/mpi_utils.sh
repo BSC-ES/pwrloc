@@ -141,9 +141,9 @@ _gather_ranks() {
 
     # Aggregate through addition if mode is combine, otherwise concatenate.
     if [ "$mode" = "combine" ]; then
-        mpi_total_array=$(_aggregate_combine "$mpi_total_array")
+        mpi_total_array=$(_aggregate_combine "$mpi_total_array" "$dtype")
     else
-        mpi_total_array=$(_aggregate_concatenate "$mpi_total_array")
+        mpi_total_array=$(_aggregate_concatenate "$mpi_total_array" "$dtype")
     fi
 
     # Print the totals as a newline-separated string.
