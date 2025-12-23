@@ -78,7 +78,7 @@ perf_profile() {
     # Acquire energy consumed for this rank.
     energy=$(_get_energy_consumed "$@")
 
-    # Print total energy consumption per event, and merge ranks if needed.
+    # Print total energy consumption per event, and gather ranks if needed.
     mpi_gather "$MPI_MODE" "$events" "$energy"
 }
 

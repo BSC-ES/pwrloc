@@ -90,17 +90,21 @@ EOF
         sleep $poll_time_s
     done
 
-    # Report energy consumption per GPU and in total
+    # Compute total of GPUs.
     total_energy=0.0
+    num_devices=$(array_len "$devices")
 
-    while [ "$(array_len "$devices")" -ne 0 ]; do
-        device=$(array_get_last "$devices")
-        devices=$(array_pop "$devices")
-        energy=$(array_get_last "$energies")
-        energies=$(array_pop "$energies")
-        printf "GPU %s:\t%s J\n" "$device" "$energy"
+    i=0
+    while [ "$i" -lt "$num_devices" ]; do
+        energy=$(array_get "$energies" "$i")
         total_energy=$(echo "$total_energy + $energy" | bc -l)
+        i=$(( i + 1 ))
     done
 
-    printf "Total:\t%s J\n" "$total_energy"
+    # Add total energy to arrays.
+    devices=$(array_push "$devices" "Total")
+    energies=$(array_push "$energies" "$total_energy")
+
+    # Print total energy consumption per event, and gather ranks if needed.
+    mpi_gather "$MPI_MODE" "$devices" "$energies"
 }

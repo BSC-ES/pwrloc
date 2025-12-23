@@ -198,9 +198,10 @@ mpi_gather() {
         # Find the longest label name for aligned printing.
         max_label_len=$(get_max_len "$labels")
 
-        # Compute width of longest line, and cap on 80 characters.
+        # Compute width of longest line, and cap on [18, 80] characters.
         max_energy_len=$(get_max_len "$energy")
         max_window_width=$((max_label_len + max_energy_len + 4))
+        [ "$max_window_width" -lt "18" ] && max_window_width=18
         [ "$max_window_width" -gt "80" ] && max_window_width=80
 
         # Print header for energy measurements.
