@@ -9,6 +9,10 @@ UTILSDIR="$SRCDIR/utils"
 . "$UTILSDIR/print_utils.sh"
 . "$UTILSDIR/array_utils.sh"
 
+# Define globals for MPI related variables.
+RANK=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+MPI_SIZE=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
 # Aggregate results of the ranks through concatonation.
 #   Supported data types:
 #       - energy:       Gather energy values.
@@ -17,7 +21,6 @@ UTILSDIR="$SRCDIR/utils"
 _aggregate_concatenate() {
     mpi_total_array="$1"
     dtype="$2"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
 
     # Setup array with data from rank 0.
     rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
@@ -30,7 +33,7 @@ EOF
 
     # Aggregate the collected values of all ranks.
     i=1
-    while [ "$i" -lt "$num_ranks" ]; do
+    while [ "$i" -lt "$MPI_SIZE" ]; do
         # Aggregate the values of this rank for each event.
         rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
         while IFS= read -r line; do
@@ -53,7 +56,6 @@ EOF
 _aggregate_combine() {
     mpi_total_array="$1"
     dtype="$2"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
 
     # Setup array with data from rank 0.
     rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
@@ -66,7 +68,7 @@ EOF
 
     # Aggregate the collected values of all ranks.
     i=1
-    while [ "$i" -lt "$num_ranks" ]; do
+    while [ "$i" -lt "$MPI_SIZE" ]; do
         rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
 
         # Aggregate the values of this rank for each event.
@@ -120,12 +122,11 @@ _gather_ranks() {
 
     # Setup collection of results.
     tmp_dir="$3"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
     file_count=0
 
-    # Number of files is twice the rank in case of collect
-    [ "$mode" = "combine" ] && num_files="$num_ranks"
-    [ "$mode" = "concatenate" ] && num_files=$((num_ranks * 2))
+    # Number of files is twice the number of ranks in case of concatenate mode.
+    [ "$mode" = "combine" ] && num_files="$MPI_SIZE"
+    [ "$mode" = "concatenate" ] && num_files=$((MPI_SIZE * 2))
 
     # Wait for all files to appear.
     while true; do
@@ -161,23 +162,24 @@ mpi_gather() {
 
     # Get job and rank ID for temporary files.
     job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
-    rank=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
+    # Store number of items per rank for printing in concatenate mode.
+    items_per_rank=$(printf '%s\n' "$labels" | wc -l)
 
     # Only write tmp files if job detected.
     if [ "$job" != "<NO JOB>" ]; then
         tmp_dir="tmp.$job"
         mkdir -p "$tmp_dir"
-        printf "%s\n" "$energy" >"$tmp_dir/rank_${rank}_energy.out"
+        printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
 
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then
-            printf "%s\n" "$labels" >"$tmp_dir/rank_${rank}_labels.out"
+            printf "%s\n" "$labels" >"$tmp_dir/rank_${RANK}_labels.out"
         fi
     fi
 
     # Only rank 0 combines the results.
-    if [ "$rank" -eq "0" ]; then
+    if [ "$RANK" -eq "0" ]; then
         # If in parallel, wait for results, gather values, and remove tmp files.
         if [ "$job" != "<NO JOB>" ]; then
             energy_total=$(_gather_ranks "$mode" "energy" "$tmp_dir")
@@ -211,8 +213,9 @@ mpi_gather() {
         zip_strings "$labels" "$energy_total" |
         while IFS=' ' read -r event energy; do
             # Add headers for each rank if in concatenate mode.
-            if [ "$mode" = "concatenate" ] && [ $((num_ranks % i)) -eq 0 ]; then
-                printf "\nRank %s:\n" $((num_ranks / i))
+            if [ "$mode" = "concatenate" ] \
+            && [ $((i % items_per_rank)) -eq 0 ]; then
+                printf "\nRank %s:\n" $((i / items_per_rank))
             fi
 
             # Omit Joules postfix if value not numerical.
