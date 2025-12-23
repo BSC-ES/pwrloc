@@ -9,74 +9,147 @@ UTILSDIR="$SRCDIR/utils"
 . "$UTILSDIR/print_utils.sh"
 . "$UTILSDIR/array_utils.sh"
 
-# Gather all collected results and delete the temporary directory.
-# Reports the energy for all events as a newline-separated string.
-#   NOTE: This function should only be called by rank 0!
-_gather_results() {
-    tmp_dir="$1"
-    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
-    file_count=0
+# Aggregate results of the ranks through concatonation.
+#   Supported data types:
+#       - energy:       Gather energy values.
+#       - labels:       Gather labels.
+#   Usage:      _aggregate_concatenate  <mpi_total_array> <dtype>
+_aggregate_concatenate() {
+    mpi_total_array="$1"
+    dtype="$2"
 
-    # Wait for all files to appear.
-    while true; do
-        file_count=$(find "$tmp_dir" -maxdepth 1 -type f | wc -l)
-        if [ "$file_count" -ge "$num_ranks" ]; then
-            break
-        fi
-        sleep 0.5
-    done
-
-    # Merge the energy logs into one, starting by own file.
-    energy_total=$(cat "$tmp_dir/rank_0.out")
-    mpi_total_energy=""
-    while IFS= read -r line; do
-        mpi_total_energy=$(array_push "$mpi_total_energy" "$line")
-    done <<EOF
-$energy_total
-EOF
-
-    # Aggregate the collecting values of all ranks.
+    # Aggregate the collected values of all ranks.
     i=1
     while [ "$i" -lt "$num_ranks" ]; do
-        energy_input=$(cat "$tmp_dir/rank_$((i - 1)).out")
+        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
 
         # Aggregate the values of this rank for each event.
         j=0
         while IFS= read -r line; do
-            cur_energy=$(array_get "$mpi_total_energy" "$j")
-
-            # If input is text, set total to that string.
-            if ! is_numerical "$line"; then
-                mpi_total_energy=$(array_set "$mpi_total_energy" "$j" "$line")
-            # Only perform addition if current total value is not a string.
-            elif is_numerical "$cur_energy"; then
-                mpi_total_energy=$(array_set "$mpi_total_energy" "$j" \
-                    "$(echo "$cur_energy + $line" | bc -l)")
-            fi
-
+            mpi_total_array=$(array_push "$mpi_total_array" "$line")
             j=$((j + 1))
         done <<EOF
-$energy_input
+$rank_input
 EOF
 
         i=$((i + 1))
     done
 
-    # Remove the tmp directory.
-    rm -rd "$tmp_dir"
-
-    # Print the totals as a newline-separated string.
-    array_foreach "$mpi_total_energy" print_argument
+    printf "%s\n" "$mpi_total_array"
 }
 
-# Profile given application with multiple ranks, if configured. Combine partial
-# energy consumption numbers and sum to total. Also works when called with one
-# process.
-#   Usage:      mpi_combine <labels> <energy_values>
-mpi_combine() {
+# Aggregate results of the ranks through addition.
+#   Supported data types:
+#       - energy:       Gather energy values.
+#       - labels:       Gather labels.
+#   Usage:      _aggregate_combine  <mpi_total_array> <dtype>
+_aggregate_combine() {
+    mpi_total_array="$1"
+    dtype="$2"
+
+    # Aggregate the collected values of all ranks.
+    i=1
+    while [ "$i" -lt "$num_ranks" ]; do
+        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
+
+        # Aggregate the values of this rank for each event.
+        j=0
+        while IFS= read -r line; do
+            cur_energy=$(array_get "$mpi_total_array" "$j")
+
+            # If input is text, set total to that string.
+            if ! is_numerical "$line"; then
+                mpi_total_array=$(array_set "$mpi_total_array" "$j" "$line")
+            # Only perform addition if current total value is not a string.
+            elif is_numerical "$cur_energy"; then
+                mpi_total_array=$(array_set "$mpi_total_array" "$j" \
+                    "$(echo "$cur_energy + $line" | bc -l)")
+            fi
+
+            j=$((j + 1))
+        done <<EOF
+$rank_input
+EOF
+
+        i=$((i + 1))
+    done
+
+    printf "%s\n" "$mpi_total_array"
+}
+
+# Gather all collected results, delete the temporary directory, and print total
+# values.
+#   NOTE: This function should only be called by rank 0!
+#   Supported modes:
+#       - combine:      Add up values at the same index for all ranks.
+#       - concatenate:  Concatenate results of all ranks and print in order.
+#   Supported data types:
+#       - energy:       Gather energy values.
+#       - labels:       Gather labels.
+#   Usage:      _gather_ranks <mode> <data_type> <tmp_dir>
+_gather_ranks() {
+    # Set mode.
+    mode="$1"
+    dtype="$2"
+
+    # Check if mode and dtype are valid.
+    if [ "$mode" != "combine" ] && [ "$mode" != "concatenate" ]; then
+        print_error "<mpi_utils> _gather_ranks called with illegal mode."
+        exit 1
+    elif [ "$dtype" != "energy" ] && [ "$dtype" != "labels" ]; then
+        print_error "<mpi_utils> _gather_ranks called with illegal dtype."
+        exit 1
+    fi
+
+    # Setup collection of results.
+    tmp_dir="$3"
+    num_ranks=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+    file_count=0
+
+    # Number of files is twice the rank in case of collect
+    [ "$mode" = "combine" ] && num_files="$num_ranks"
+    [ "$mode" = "concatenate" ] && num_files=$((num_ranks * 2))
+
+    # Wait for all files to appear.
+    while true; do
+        file_count=$(find "$tmp_dir" -maxdepth 1 -type f | wc -l)
+        if [ "$file_count" -ge "$num_files" ]; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Merge the energy logs into one string, starting by own file.
+    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    mpi_total_array=""
+    while IFS= read -r line; do
+        mpi_total_array=$(array_push "$mpi_total_array" "$line")
+    done <<EOF
+$rank0_data
+EOF
+
+    # Aggregate through addition if mode is combine, otherwise concatenate.
+    if [ "$mode" = "combine" ]; then
+        mpi_total_array=$(_aggregate_combine "$mpi_total_array")
+    else
+        mpi_total_array=$(_aggregate_concatenate "$mpi_total_array")
+    fi
+
+    # Print the totals as a newline-separated string.
+    array_foreach "$mpi_total_array" print_argument
+}
+
+# Combine partial energy consumption numbers and sum to total.
+# Also works when called with one process.
+#   Supported modes:
+#       - combine:      Add up values at the same index for all ranks.
+#       - concatenate:  Concatenate results of all ranks and print in order.
+#   Usage:      mpi_gather <mode> <labels> <energy_values>
+mpi_gather() {
     # Name input.
-    labels="$1"
-    energy="$2"
+    mode="$1"
+    labels="$2"
+    energy="$3"
 
     # Get job and rank ID for temporary files.
     job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
@@ -87,19 +160,37 @@ mpi_combine() {
         tmp_dir="tmp.$job"
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_$rank.out"
+
+        # Only store labels if in concatenate mode.
+        if [ "$mode" = "concatenate" ]; then
+            printf "%s\n" "$energy" >"$tmp_dir/rank_${rank}_labels.out"
+        fi
     fi
 
     # Only rank 0 combines the results.
     if [ "$rank" -eq "0" ]; then
         # If in parallel, wait for results, gather values, and remove tmp files.
         if [ "$job" != "<NO JOB>" ]; then
-            energy_total=$(_gather_results "$tmp_dir")
+            energy_total=$(_gather_ranks "$mode" "energy" "$tmp_dir")
+
+            # Overwrite labels if mode is concatenate.
+            if [ "$mode" = "concatenate" ]; then
+                labels=$(_gather_ranks "$mode" "labels" "$tmp_dir")
+            fi
+
+            # Remove the tmp directory.
+            rm -rd "$tmp_dir"
         else
             energy_total=$energy
         fi
 
         # Find the longest label name for aligned printing.
         max_len=$(get_max_len "$labels")
+
+        # Print header for energy measurements.
+        print_full_width "=" "22"
+        print_centered "Energy Consumption"
+        print_full_width "=" "22"
 
         # Print labels with collected values side by side.
         zip_strings "$labels" "$energy_total" |
@@ -110,5 +201,8 @@ mpi_combine() {
                 printf "%-${max_len}s  %s\n" "$event" "$energy"
             fi
         done
+
+        # Print footer for energy measurements.
+        print_full_width "=" "22"
     fi
 }
