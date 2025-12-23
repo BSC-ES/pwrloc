@@ -211,8 +211,8 @@ mpi_gather() {
         zip_strings "$labels" "$energy_total" |
         while IFS=' ' read -r event energy; do
             # Add headers for each rank if in concatenate mode.
-            if [ "$mode" = "concatenate" ] && [ $((i % num_ranks)) -eq 0 ]; then
-                printf "\nRank %s:\n" $((i / num_ranks))
+            if [ "$mode" = "concatenate" ] && [ $((num_ranks % i)) -eq 0 ]; then
+                printf "\nRank %s:\n" $((num_ranks / i))
             fi
 
             # Omit Joules postfix if value not numerical.
