@@ -35,7 +35,7 @@ EOF
     i=1
     while [ "$i" -lt "$MPI_SIZE" ]; do
         # Aggregate the values of this rank for each event.
-        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
+        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
@@ -69,7 +69,7 @@ EOF
     # Aggregate the collected values of all ranks.
     i=1
     while [ "$i" -lt "$MPI_SIZE" ]; do
-        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
+        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
 
         # Aggregate the values of this rank for each event.
         j=0
@@ -171,6 +171,10 @@ mpi_gather() {
         tmp_dir="tmp.$job"
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
+
+        # Report task's energy consumption in VERBOSE mode.
+        line="Task's total energy consumption: $(array_get "$energy" "-1")"
+        verbose_echo print_info "$line"
 
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then

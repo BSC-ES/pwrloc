@@ -51,61 +51,6 @@ test_array_push() {
     fi
 }
 
-# Test array_get_last.
-test_array_get_last() {
-    # Setup default array.
-    arr="$(_setup_test_array)"
-
-    # Check for first pop.
-    top_val=$(array_get_last "$arr")
-    if [ "$top_val" != "val2" ]; then
-        printf "Top value incorrect: '%s' != val2.\n" "$top_val" >&2
-        return 1
-    fi
-}
-
-# Test array_pop.
-test_array_pop() {
-    # Setup default array.
-    arr="$(_setup_test_array)"
-
-    # Check for first pop.
-    top_val=$(array_get_last "$arr")
-    arr=$(array_pop "$arr")
-    if [ "$top_val" != "val2" ]; then
-        printf "Top value incorrect: '%s' != val2.\n" "$top_val" >&2
-        return 1
-    elif [ "$(array_len "$arr")" -ne 2 ]; then
-        printf "array length is incorrect after first pop: '%s' != 2.\n" \
-            "$(array_len "$arr")" >&2
-        return 1
-    fi
-
-    # Check for second pop.
-    top_val=$(array_get_last "$arr")
-    arr=$(array_pop "$arr")
-    if [ "$top_val" != "val1" ]; then
-        printf "Top value incorrect: '%s' != val1.\n" "$top_val" >&2
-        return 1
-    elif [ "$(array_len "$arr")" -ne 1 ]; then
-        printf "array length is incorrect after second pop: '%s' != 1.\n" \
-            "$(array_len "$arr")" >&2
-        return 1
-    fi
-
-    # Check for third pop.
-    top_val=$(array_get_last "$arr")
-    arr=$(array_pop "$arr")
-    if [ "$top_val" != "val0" ]; then
-        printf "Top value incorrect: '%s' != val0.\n" "$top_val" >&2
-        return 1
-    elif [ "$(array_len "$arr")" -ne 0 ]; then
-        printf "array length is incorrect after third pop: '%s' != 0.\n" \
-            "$(array_len "$arr")" >&2
-        return 1
-    fi
-}
-
 # Test array_get.
 test_array_get() {
     # Setup default array.
@@ -131,6 +76,27 @@ test_array_get() {
         printf "The third value is incorrect: '%s' != val2.\n" "$val" >&2
         return 1
     fi
+
+    # Check for the third value with negative indexing.
+    val=$(array_get "$arr" "-1")
+    if [ "$val" != "val2" ]; then
+        printf "The third value via negative indexing is incorrect: '%s' != val2.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the second value with negative indexing.
+    val=$(array_get "$arr" "-2")
+    if [ "$val" != "val1" ]; then
+        printf "The second value via negative indexing is incorrect: '%s' != val1.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the first value with negative indexing.
+    val=$(array_get "$arr" "-3")
+    if [ "$val" != "val0" ]; then
+        printf "The first value via negative indexing is incorrect: '%s' != val0.\n" "$val" >&2
+        return 1
+    fi
 }
 
 # Test array_set.
@@ -153,6 +119,48 @@ test_array_set() {
     if [ "$val" != "new1" ]; then
         printf \
             "The overwritten value is incorrect: '%s' != 'new1'.\n" "$val" >&2
+        return 1
+    fi
+}
+
+# Test array_pop.
+test_array_pop() {
+    # Setup default array.
+    arr="$(_setup_test_array)"
+
+    # Check for first pop.
+    top_val=$(array_get "$arr" "-1")
+    arr=$(array_pop "$arr")
+    if [ "$top_val" != "val2" ]; then
+        printf "Top value incorrect: '%s' != val2.\n" "$top_val" >&2
+        return 1
+    elif [ "$(array_len "$arr")" -ne 2 ]; then
+        printf "array length is incorrect after first pop: '%s' != 2.\n" \
+            "$(array_len "$arr")" >&2
+        return 1
+    fi
+
+    # Check for second pop.
+    top_val=$(array_get "$arr" "-1")
+    arr=$(array_pop "$arr")
+    if [ "$top_val" != "val1" ]; then
+        printf "Top value incorrect: '%s' != val1.\n" "$top_val" >&2
+        return 1
+    elif [ "$(array_len "$arr")" -ne 1 ]; then
+        printf "array length is incorrect after second pop: '%s' != 1.\n" \
+            "$(array_len "$arr")" >&2
+        return 1
+    fi
+
+    # Check for third pop.
+    top_val=$(array_get "$arr" "-1")
+    arr=$(array_pop "$arr")
+    if [ "$top_val" != "val0" ]; then
+        printf "Top value incorrect: '%s' != val0.\n" "$top_val" >&2
+        return 1
+    elif [ "$(array_len "$arr")" -ne 0 ]; then
+        printf "array length is incorrect after third pop: '%s' != 0.\n" \
+            "$(array_len "$arr")" >&2
         return 1
     fi
 }
@@ -183,6 +191,7 @@ test_array_delete() {
 # Test array_foreach.
 test_array_foreach() {
     # Define printing function to be used. Note it is globally defined!
+    # shellcheck disable=SC2329
     print_string() {
         printf '%s\n' "$1"
     }

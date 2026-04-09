@@ -34,7 +34,7 @@ _get_rocm_power_measurement() {
     | while IFS=',' read -r device power; do
         # Skip N/A value.
         case $power in
-            N/A*) ;;
+            N/A*) printf '%s %s\n' "$device" "0" ;;
             *) printf '%s %s\n' "$device" "$power" ;;
         esac
     done
@@ -76,11 +76,14 @@ EOF
     while kill -0 "$child_pid" 2>/dev/null; do
         i=0
         while IFS=' ' read -r device power; do
-            watts="$power"
-            energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
-            cur_energy=$(array_get "$energies" "$i")
-            energies=$(array_set "$energies" "$i" \
-                "$(echo "$cur_energy + $energy_consumed" | bc -l)")
+            # Only update value of this card if there is a measurement.
+            if [ -n "$power" ]; then
+                watts="$power"
+                energy_consumed=$(echo "$watts * $poll_time_s" | bc -l)
+                cur_energy=$(array_get "$energies" "$i")
+                energies=$(array_set "$energies" "$i" \
+                    "$(echo "$cur_energy + $energy_consumed" | bc -l)")
+            fi
             i=$((i+1))
         done <<EOF
 $(_get_rocm_power_measurement)

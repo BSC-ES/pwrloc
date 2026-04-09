@@ -256,7 +256,7 @@ _parse_papi_native_avail() {
                 else
                     # Otherwise, take combinations of the event and modifiers.
                     while [ "$(array_len "$modifiers")" -ne 0 ]; do
-                        mod=$(array_get_last "$modifiers")
+                        mod=$(array_get "$modifiers" "-1")
                         modifiers=$(array_pop "$modifiers")
                         _print_papi_event "$mode" "${event_name}${mod}" "$unit"
                     done
@@ -290,7 +290,7 @@ _get_papi_native_avail() {
     events=""
 
     while [ "$(array_len "$components")" -ne 0 ]; do
-        component=$(array_get_last "$components")
+        component=$(array_get "$components" "-1")
         components=$(array_pop "$components")
         events=$(papi_native_avail -i "$component")
 
