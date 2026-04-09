@@ -10,7 +10,6 @@
 #   - Get array length:             array_len <array>
 #   - Add value to top:             array_push <array> <value>
 #   - Delete and export top value:  array_pop <array>
-#   - Get last value:               array_get_last <array>
 #   - Get the value at a index:     array_get <array> <index>
 #   - Set the value at a index:     array_set <array> <index> <new_value>
 #   - Delete array value:           array_delete <array> <index>
@@ -72,24 +71,8 @@ array_pop() {
             prev = $0
         }
         END {
-            # do not print the last non-empty line, which is what we remove.
+            # Do not print the last non-empty line, as it is what we remove.
         }
-    '
-}
-
-# Gets the last array value.
-#   Usage:    array_get_last <array>
-array_get_last() {
-    # Sanitize input.
-    if [ -z "$1" ]; then
-        print_error "<array_get> No array passed."
-        return 1
-    fi
-
-    # Print only last element.
-    printf '%s\n' "$1" | awk '
-        length($0) { last = $0 }
-        END { if (length(last)) print last }
     '
 }
 
@@ -114,7 +97,7 @@ array_get() {
             lines[NR] = $0
         }
         END {
-            # Resolve index
+            # Resolve index sign.
             if (idx >= 0) {
                 target = idx + 1
             } else {
