@@ -35,7 +35,7 @@ EOF
     i=1
     while [ "$i" -lt "$MPI_SIZE" ]; do
         # Aggregate the values of this rank for each event.
-        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
+        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
@@ -69,7 +69,7 @@ EOF
     # Aggregate the collected values of all ranks.
     i=1
     while [ "$i" -lt "$MPI_SIZE" ]; do
-        rank_input=$(cat "$tmp_dir/rank_$((i - 1))_$dtype.out")
+        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
 
         # Aggregate the values of this rank for each event.
         j=0
