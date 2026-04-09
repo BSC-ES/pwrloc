@@ -183,6 +183,7 @@ test_array_delete() {
 # Test array_foreach.
 test_array_foreach() {
     # Define printing function to be used. Note it is globally defined!
+    # shellcheck disable=SC2329
     print_string() {
         printf '%s\n' "$1"
     }
