@@ -108,14 +108,26 @@ array_get() {
         return 1
     fi
 
-    # Convert the 0-based index to 1-based.
-    idx=$(( $2 + 1 ))
+    # Convert the 0-based index to 1-based for awk usage.
+    printf '%s\n' "$1" | awk -v idx="$2" '
+        {
+            lines[NR] = $0
+        }
+        END {
+            # Resolve index
+            if (idx >= 0) {
+                target = idx + 1
+            } else {
+                target = NR + idx + 1
+            }
 
-    # Print only the requested line.
-    printf '%s\n' "$1" | awk -v idx="$idx" '
-        NR == idx {
-            print
-            exit
+            # Return nothing if index out of bounds.
+            if (target < 1 || target > NR) {
+                verbose_echo print_error "<array_get> Index out of bounds."
+                exit 1
+            }
+
+            print lines[target]
         }
     '
 }

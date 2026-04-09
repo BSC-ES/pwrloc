@@ -131,6 +131,27 @@ test_array_get() {
         printf "The third value is incorrect: '%s' != val2.\n" "$val" >&2
         return 1
     fi
+
+    # Check for the third value with negative indexing.
+    val=$(array_get "$arr" "-1")
+    if [ "$val" != "val2" ]; then
+        printf "The third value via negative indexing is incorrect: '%s' != val2.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the second value with negative indexing.
+    val=$(array_get "$arr" "-2")
+    if [ "$val" != "val1" ]; then
+        printf "The second value via negative indexing is incorrect: '%s' != val1.\n" "$val" >&2
+        return 1
+    fi
+
+    # Check for the first value with negative indexing.
+    val=$(array_get "$arr" "-3")
+    if [ "$val" != "val0" ]; then
+        printf "The first value via negative indexing is incorrect: '%s' != val0.\n" "$val" >&2
+        return 1
+    fi
 }
 
 # Test array_set.

@@ -171,6 +171,7 @@ mpi_gather() {
         tmp_dir="tmp.$job"
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
+        verbose_echo print_info "Total Energy Task: $(array_get "$energy" "-1")"
 
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then
