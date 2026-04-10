@@ -342,15 +342,16 @@ papi_profile() {
         return
     fi
 
-    verbose_echo print_info "Events:\n$events"
-    verbose_echo print_info "Units:\n$units"
+    verbose_echo print_info "Events:
+$events"
+    verbose_echo print_info "Units:
+$units"
 
     # Make sure the papi_profiler is updated and compiled.
     _compile_papi_profiler
 
     # Compute the number of nodes using all ranks.
     num_nodes=$(mpi_get_num_nodes)
-    verbose_echo print_info "<papi_profile> num_nodes=$num_nodes"
 
     # PAPI uses RAPL which profiles the entire node, thus only the first rank
     # per node needs to profile.
