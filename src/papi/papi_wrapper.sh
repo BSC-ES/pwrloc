@@ -352,8 +352,14 @@ papi_profile() {
     # PAPI uses RAPL which profiles the entire node, thus only the first rank
     # per node needs to profile.
     if [ "$LOCAL_RANK" -eq "0" ]; then
+        # Collect measurements with PAPI.
         verbose_echo print_info "Executing profiler"
-        "$PAPI_PROFILER" "$events" "$units" "$@"
+        output=$("$PAPI_PROFILER" "$events" "$units" "$@")
+
+        # Split output in events and energies, then merge MPI ranks.
+        events=$(printf '%s\n' "$output" | awk '{print $1}')
+        energies=$(printf '%s\n' "$output" | awk '{print $2}')
+        mpi_gather "$MPI_MODE" "$MPI_SIZE" "$events" "$energies"
     else
         verbose_echo print_info "Local rank >0, so exiting.."
     fi
