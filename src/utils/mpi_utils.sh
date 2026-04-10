@@ -17,6 +17,7 @@ LOCAL_RANK=${OMPI_COMM_WORLD_LOCAL_RANK:-${MPI_LOCALRANKID:-${PMI_LOCAL_RANK:-${
 MPI_SIZE=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
 JOB=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
 
+
 # Aggregate results of the ranks through concatonation.
 #   Supported data types:
 #       - energy:       Gather energy values.
@@ -182,10 +183,6 @@ mpi_gather() {
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
 
-        # Report task's energy consumption in VERBOSE mode.
-        line="Task's total energy consumption: $(array_get "$energy" "-1")"
-        verbose_echo print_info "$line"
-
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then
             printf "%s\n" "$labels" >"$tmp_dir/rank_${RANK}_labels.out"
@@ -263,7 +260,7 @@ mpi_get_num_nodes() {
     # Create tmp dir and let every rank write their local rank id.
     tmp_dir_num_nodes="tmp.$JOB/num_nodes"
     mkdir -p "$tmp_dir_num_nodes"
-    printf "%s\n" "$LOCAL_RANK" >"$tmp_dir_num_nodes/${RANK}_${LOCAL_RANK}.tmp"
+    touch "$tmp_dir_num_nodes/${RANK}_${LOCAL_RANK}.tmp"
 
     # Wait for all files to be written.
     while true; do
@@ -278,7 +275,7 @@ mpi_get_num_nodes() {
     node_count=$(
         find "$tmp_dir_num_nodes" -type f -name '*0.tmp' | wc -l | tr -d ' '
     )
-    print "\n" >"$tmp_dir_num_nodes/sync.${RANK}"
+    touch "$tmp_dir_num_nodes/sync.${RANK}"
 
     # Sync with all processes and perform cleanup.
     if [ "$RANK" -eq "0" ]; then
