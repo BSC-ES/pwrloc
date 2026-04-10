@@ -103,6 +103,7 @@ show_setup() {
     verbose_echo "MPI rank = $RANK"
     verbose_echo "MPI local rank = $MPI_SIZE"
     verbose_echo "MPI size = $LOCAL_RANK"
+    verbose_echo "JobID = $JOB"
     verbose_echo "======== END SETUP ========"
 }
 
