@@ -64,20 +64,22 @@ _aggregate_combine() {
     num_procs="$2"
     dtype="$3"
 
-    # Setup array with data from rank 0.
-    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    # Get all filenames of $dtype and sort by rank.
+    rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
+        awk -F'[_./]' '{print $(NF-2), $0}' |
+        sort -n |
+        cut -d' ' -f2-)
+
+    # Setup array with data from the first rank and delete from list.
+    first_rank_file=$(array_get "rank_files" "0")
+    first_rank_data=$(cat "$tmp_dir/$first_rank_file")
     mpi_total_array=""
     while IFS= read -r line; do
         mpi_total_array=$(array_push "$mpi_total_array" "$line")
     done <<EOF
-$rank0_data
+$first_rank_data
 EOF
-
-    # Get all filenames containing $dtype and sort by rank.
-    rank_files=$(find . -type f -name "rank_*_${dtype}.out" |
-        awk -F'[_./]' '{print $(NF-2), $0}' |
-        sort -n |
-        cut -d' ' -f2-)
+    rank_files=$(array_delete "$rank_files" "0")
 
     # Loop over rank files and aggregate values.
     while IFS= read -r rank_file; do
