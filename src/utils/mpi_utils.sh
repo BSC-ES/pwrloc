@@ -83,7 +83,6 @@ EOF
 
     # Loop over rank files and aggregate values.
     while IFS= read -r rank_file; do
-        echo "Processing $rank_file"
         # Aggregate the values of this rank for each event.
         j=0
         while IFS= read -r line; do
@@ -105,35 +104,6 @@ EOF
     done <<EOF
 $rank_files
 EOF
-
-
-
-#     # Aggregate the collected values of all ranks.
-#     i=1
-#     while [ "$i" -lt "$num_procs" ]; do
-#         rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
-
-#         # Aggregate the values of this rank for each event.
-#         j=0
-#         while IFS= read -r line; do
-#             cur_energy=$(array_get "$mpi_total_array" "$j")
-
-#             # If input is text, set total to that string.
-#             if ! is_numerical "$line"; then
-#                 mpi_total_array=$(array_set "$mpi_total_array" "$j" "$line")
-#             # Only perform addition if current total value is not a string.
-#             elif is_numerical "$cur_energy"; then
-#                 mpi_total_array=$(array_set "$mpi_total_array" "$j" \
-#                     "$(echo "$cur_energy + $line" | bc -l)")
-#             fi
-
-#             j=$((j + 1))
-#         done <<EOF
-# $rank_input
-# EOF
-
-#         i=$((i + 1))
-#     done
 
     printf "%s\n" "$mpi_total_array"
 }
