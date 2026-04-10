@@ -364,6 +364,6 @@ papi_profile() {
         energies=$(printf '%s\n' "$output" | awk '{print $2}')
         mpi_gather "$MPI_MODE" "$num_nodes" "$events" "$energies"
     else
-        verbose_echo print_info "Local rank >0, so exiting.."
+        verbose_echo print_info "Local rank > 0, so exiting.."
     fi
 }

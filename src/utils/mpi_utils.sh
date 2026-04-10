@@ -289,7 +289,7 @@ mpi_get_num_nodes() {
         done
 
         # Let the folder itself exist as it will be removed during MPI clean up.
-        rm "$tmp_dir_num_nodes/*"
+        rm -rf "${tmp_dir_num_nodes:?}/*"
     else
         # If rank >0, wait for all files to be removed.
         while true; do
