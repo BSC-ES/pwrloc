@@ -264,7 +264,7 @@ mpi_get_num_nodes() {
     # Create tmp dir and let every rank write their local rank id.
     tmp_dir_num_nodes="tmp.$JOB/num_nodes"
     mkdir -p "$tmp_dir_num_nodes"
-    printf "%s\n" "$LOCAL_RANK" >"$tmp_dir_num_nodes/${LOCAL_RANK}.tmp"
+    printf "%s\n" "$LOCAL_RANK" >"$tmp_dir_num_nodes/${RANK}_${LOCAL_RANK}.tmp"
 
     # Wait for all files to be written.
     while true; do
@@ -277,7 +277,7 @@ mpi_get_num_nodes() {
 
     # Count the number of files named 0.tmp and write confirm file.
     node_count=$(
-        find "$tmp_dir_num_nodes" -type f -name '0.tmp' | wc -l | tr -d ' '
+        find "$tmp_dir_num_nodes" -type f -name '*0.tmp' | wc -l | tr -d ' '
     )
     print "\n" >"$tmp_dir_num_nodes/sync.${RANK}"
 
