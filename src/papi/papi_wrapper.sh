@@ -346,11 +346,11 @@ papi_profile() {
     verbose_echo print_info "Units:\n$units"
 
     # Make sure the papi_profiler is updated and compiled.
-    verbose_echo print_info "Compiling papi_profiler.c.."
     _compile_papi_profiler
 
     # Compute the number of nodes using all ranks.
     num_nodes=$(mpi_get_num_nodes)
+    verbose_echo print_info "<papi_profile> num_nodes=$num_nodes"
 
     # PAPI uses RAPL which profiles the entire node, thus only the first rank
     # per node needs to profile.
