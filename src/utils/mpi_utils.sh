@@ -28,6 +28,8 @@ _aggregate_concatenate() {
     num_procs="$2"
     dtype="$3"
 
+    # TODO: Fix reading the files as done for combine!
+
     # Setup array with data from rank 0.
     rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
     mpi_total_array=""
@@ -186,7 +188,6 @@ mpi_gather() {
     if [ "$JOB" != "<NO JOB>" ]; then
         tmp_dir="tmp.$JOB"
         mkdir -p "$tmp_dir"
-        # TODO: Read loop is +=1, with Rank and per-node you get 0,2,etc. causing problems.
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
 
         # Only store labels if in concatenate mode.
@@ -295,7 +296,7 @@ mpi_get_num_nodes() {
         done
 
         # Let the folder itself exist as it will be removed during MPI clean up.
-        rm -rf "$tmp_dir_num_nodes/"
+        rm -rf "${tmp_dir_num_nodes:?}/"
     else
         # If rank > 0, wait for num_nodes dir to be removed.
         while [ -d "$tmp_dir_num_nodes" ]; do
