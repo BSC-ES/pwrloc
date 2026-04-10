@@ -73,11 +73,15 @@ _aggregate_combine() {
 $rank0_data
 EOF
 
-    # Aggregate the collected values of all ranks.
-    i=1
-    while [ "$i" -lt "$num_procs" ]; do
-        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
+    # Get all filenames containing $dtype and sort by rank.
+    rank_files=$(find . -type f -name "rank_*_${dtype}.out" |
+        awk -F'[_./]' '{print $(NF-2), $0}' |
+        sort -n |
+        cut -d' ' -f2-)
 
+    # Loop over rank files and aggregate values.
+    while IFS= read -r rank_file; do
+        echo "Processing $rank_file"
         # Aggregate the values of this rank for each event.
         j=0
         while IFS= read -r line; do
@@ -94,11 +98,40 @@ EOF
 
             j=$((j + 1))
         done <<EOF
-$rank_input
+$rank_file
+EOF
+    done <<EOF
+$rank_files
 EOF
 
-        i=$((i + 1))
-    done
+
+
+#     # Aggregate the collected values of all ranks.
+#     i=1
+#     while [ "$i" -lt "$num_procs" ]; do
+#         rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
+
+#         # Aggregate the values of this rank for each event.
+#         j=0
+#         while IFS= read -r line; do
+#             cur_energy=$(array_get "$mpi_total_array" "$j")
+
+#             # If input is text, set total to that string.
+#             if ! is_numerical "$line"; then
+#                 mpi_total_array=$(array_set "$mpi_total_array" "$j" "$line")
+#             # Only perform addition if current total value is not a string.
+#             elif is_numerical "$cur_energy"; then
+#                 mpi_total_array=$(array_set "$mpi_total_array" "$j" \
+#                     "$(echo "$cur_energy + $line" | bc -l)")
+#             fi
+
+#             j=$((j + 1))
+#         done <<EOF
+# $rank_input
+# EOF
+
+#         i=$((i + 1))
+#     done
 
     printf "%s\n" "$mpi_total_array"
 }
@@ -181,6 +214,7 @@ mpi_gather() {
     if [ "$JOB" != "<NO JOB>" ]; then
         tmp_dir="tmp.$JOB"
         mkdir -p "$tmp_dir"
+        # TODO: Read loop is +=1, with Rank and per-node you get 0,2,etc. causing problems.
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
 
         # Only store labels if in concatenate mode.
