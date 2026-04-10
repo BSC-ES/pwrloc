@@ -71,8 +71,8 @@ _aggregate_combine() {
         cut -d' ' -f2-)
 
     # Setup array with data from the first rank and delete from list.
-    first_rank_file=$(array_get "rank_files" "0")
-    first_rank_data=$(cat "$tmp_dir/$first_rank_file")
+    first_rank_file=$(array_get "$rank_files" "0")
+    first_rank_data=$(cat "$first_rank_file")
     mpi_total_array=""
     while IFS= read -r line; do
         mpi_total_array=$(array_push "$mpi_total_array" "$line")
