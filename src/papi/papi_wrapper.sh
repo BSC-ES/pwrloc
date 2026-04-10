@@ -359,7 +359,8 @@ papi_profile() {
         # Split output in events and energies, then merge MPI ranks.
         events=$(printf '%s\n' "$output" | awk '{print $1}')
         energies=$(printf '%s\n' "$output" | awk '{print $2}')
-        mpi_gather "$MPI_MODE" "$MPI_SIZE" "$events" "$energies"
+        num_nodes=$(mpi_get_num_nodes)
+        mpi_gather "$MPI_MODE" "$num_nodes" "$events" "$energies"
     else
         verbose_echo print_info "Local rank >0, so exiting.."
     fi

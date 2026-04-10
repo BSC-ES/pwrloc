@@ -16,7 +16,7 @@ LOCAL_RANK=${OMPI_COMM_WORLD_LOCAL_RANK:-${MPI_LOCALRANKID:-${PMI_LOCAL_RANK:-\
     ${SLURM_LOCALID:-0}}}}
 # shellcheck disable=SC2034
 MPI_SIZE=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
-
+JOB=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
 
 # Aggregate results of the ranks through concatonation.
 #   Supported data types:
@@ -174,15 +174,12 @@ mpi_gather() {
     labels="$3"
     energy="$4"
 
-    # Get job and rank ID for temporary files.
-    job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
-
     # Store number of items per rank for printing in concatenate mode.
     items_per_rank=$(printf '%s\n' "$labels" | wc -l)
 
     # Only write tmp files if job detected.
-    if [ "$job" != "<NO JOB>" ]; then
-        tmp_dir="tmp.$job"
+    if [ "$JOB" != "<NO JOB>" ]; then
+        tmp_dir="tmp.$JOB"
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
 
@@ -199,7 +196,7 @@ mpi_gather() {
     # Only rank 0 combines the results.
     if [ "$RANK" -eq "0" ]; then
         # If in parallel, wait for results, gather values, and remove tmp files.
-        if [ "$job" != "<NO JOB>" ]; then
+        if [ "$JOB" != "<NO JOB>" ]; then
             energy_total=$(
                 _gather_ranks "$mode" "$num_procs" "energy" "$tmp_dir"
             )
@@ -254,4 +251,60 @@ mpi_gather() {
         # Print footer for energy measurements.
         print_full_width "=" "$max_window_width"
     fi
+}
+
+# Get the number of nodes in use.
+mpi_get_num_nodes() {
+    # Return 1 if MPI is not in use.
+    if [ "$JOB" = "<NO JOB>" ]; then
+        printf "1\n"
+        return
+    fi
+
+    # Create tmp dir and let every rank write their local rank id.
+    tmp_dir_num_nodes="tmp.$JOB/num_nodes"
+    mkdir -p "$tmp_dir_num_nodes"
+    printf "%s\n" "$LOCAL_RANK" >"$tmp_dir_num_nodes/${LOCAL_RANK}.tmp"
+
+    # Wait for all files to be written.
+    while true; do
+        file_count=$(find "$tmp_dir_num_nodes" -maxdepth 1 -type f | wc -l)
+        if [ "$file_count" -ge "$MPI_SIZE" ]; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Count the number of files named 0.tmp and write confirm file.
+    node_count=$(
+        find "$tmp_dir_num_nodes" -type f -name '0.tmp' | wc -l | tr -d ' '
+    )
+    print "\n" >"$tmp_dir_num_nodes/sync.${RANK}"
+
+    # Sync with all processes and perform cleanup.
+    if [ "$RANK" -eq "0" ]; then
+        # If rank 0, wait for all files to be present, and remove everything.
+        while true; do
+            file_count=$(find "$tmp_dir_num_nodes" -maxdepth 1 -type f | wc -l)
+            if [ "$file_count" -ge "$((MPI_SIZE * 2))" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+
+        # Let the folder itself exist as it will be removed during MPI clean up.
+        rm "$tmp_dir_num_nodes/*"
+    else
+        # If rank >0, wait for all files to be removed.
+        while true; do
+            file_count=$(find "$tmp_dir_num_nodes" -maxdepth 1 -type f | wc -l)
+            if [ "$file_count" -eq "0" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+    fi
+
+    # Print number of nodes.
+    printf "%s\n" "$node_count"
 }
