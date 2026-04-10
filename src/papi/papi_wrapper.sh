@@ -9,6 +9,7 @@ PAPIDIR="$SRCDIR/papi"
 . "$PAPIDIR/../utils/general_utils.sh"
 . "$PAPIDIR/../utils/print_utils.sh"
 . "$PAPIDIR/../utils/array_utils.sh"
+. "$PAPIDIR/../utils/mpi_utils.sh"
 
 PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
 
@@ -27,28 +28,42 @@ papi_available() {
     return 0
 }
 
+# Compile profiler binary if needed.
 _compile_papi_profiler() {
-    # Check if the binary exists.
-    if [ -f "$PAPI_PROFILER" ]; then
-        # If exists, check for executable rights and rebuild if not.
-        if [ -x "$PAPI_PROFILER" ]; then
-            return
-        else
+    # Return if profiler exists and is executable.
+    if [ -x "$PAPI_PROFILER" ]; then
+        return
+    fi
+
+    # Recompile profiler with rank 0, and let other ranks wait.
+    if [ "$RANK" -eq "0" ]; then
+        verbose_echo print_info "Compiling papi_profiler.c.."
+
+        # Remove profiler binary if it exists but isn't executable.
+        if [ -f "$PAPI_PROFILER" ]; then
             rm "$PAPI_PROFILER"
         fi
-    fi
 
+        # Compile the code.
+        if ! cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" \
+                "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall; then
+            print_error \
+                "Error while compiling $(basename "$PAPI_PROFILER"), exiting.."
+            exit 1
+        fi
 
-    # Compile the code.
-    if ! cc "$PAPIDIR/papi_profiler.c" "$PAPIDIR/papi_component.c" "$PAPIDIR/papi_event.c" -o "$PAPI_PROFILER" -lpapi -Wall; then
-        print_error "Error while compiling $(basename "$PAPI_PROFILER"), exiting.."
-        exit 1
-    fi
-
-    # Make binary executable.
-    if ! chmod +x "$PAPI_PROFILER"; then
-        print_error "Error during 'chmod +x $(basename "$PAPI_PROFILER")', exiting.."
-        exit 1
+        # Make binary executable.
+        if ! chmod +x "$PAPI_PROFILER"; then
+            print_error \
+                "Error during 'chmod +x $(basename "$PAPI_PROFILER")', exiting.."
+            exit 1
+        fi
+    else
+        # Rank >0 wait till profiler exists.
+        verbose_echo print_info "Waiting for rank 0 to compile profiler.."
+        while [ ! -x "$PAPI_PROFILER" ]; do
+            sleep 0.2
+        done
     fi
 }
 
@@ -334,7 +349,12 @@ papi_profile() {
     verbose_echo print_info "Compiling papi_profiler.c.."
     _compile_papi_profiler
 
-    # Profile binary with supported events.
-    verbose_echo print_into "Executing profiler"
-    "$PAPI_PROFILER" "$events" "$units" "$@"
+    # PAPI uses RAPL which profiles the entire node, thus only the first rank
+    # per node needs to profile.
+    if [ "$LOCAL_RANK" -eq "0" ]; then
+        verbose_echo print_info "Executing profiler"
+        "$PAPI_PROFILER" "$events" "$units" "$@"
+    else
+        verbose_echo print_info "Local rank >0, so exiting.."
+    fi
 }

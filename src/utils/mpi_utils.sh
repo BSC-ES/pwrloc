@@ -11,16 +11,22 @@ UTILSDIR="$SRCDIR/utils"
 
 # Define globals for MPI related variables.
 RANK=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+# shellcheck disable=SC2034
+LOCAL_RANK=${OMPI_COMM_WORLD_LOCAL_RANK:-${MPI_LOCALRANKID:-${PMI_LOCAL_RANK:-\
+    ${SLURM_LOCALID:-0}}}}
+# shellcheck disable=SC2034
 MPI_SIZE=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+
 
 # Aggregate results of the ranks through concatonation.
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _aggregate_concatenate  <mpi_total_array> <dtype>
+#   Usage:      _aggregate_concatenate  <mpi_total_array> <num_procs> <dtype>
 _aggregate_concatenate() {
     mpi_total_array="$1"
-    dtype="$2"
+    num_procs="$2"
+    dtype="$3"
 
     # Setup array with data from rank 0.
     rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
@@ -33,7 +39,7 @@ EOF
 
     # Aggregate the collected values of all ranks.
     i=1
-    while [ "$i" -lt "$MPI_SIZE" ]; do
+    while [ "$i" -lt "$num_procs" ]; do
         # Aggregate the values of this rank for each event.
         rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
         while IFS= read -r line; do
@@ -52,10 +58,11 @@ EOF
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _aggregate_combine  <mpi_total_array> <dtype>
+#   Usage:      _aggregate_combine  <mpi_total_array> <num_procs> <dtype>
 _aggregate_combine() {
     mpi_total_array="$1"
-    dtype="$2"
+    num_procs="$2"
+    dtype="$3"
 
     # Setup array with data from rank 0.
     rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
@@ -68,7 +75,7 @@ EOF
 
     # Aggregate the collected values of all ranks.
     i=1
-    while [ "$i" -lt "$MPI_SIZE" ]; do
+    while [ "$i" -lt "$num_procs" ]; do
         rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
 
         # Aggregate the values of this rank for each event.
@@ -105,11 +112,13 @@ EOF
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _gather_ranks <mode> <data_type> <tmp_dir>
+#   Usage:      _gather_ranks <mode> <$num_procs> <data_type> <tmp_dir>
 _gather_ranks() {
     # Set mode.
     mode="$1"
-    dtype="$2"
+    num_procs="$2"
+    dtype="$3"
+    tmp_dir="$4"
 
     # Check if mode and dtype are valid.
     if [ "$mode" != "combine" ] && [ "$mode" != "concatenate" ]; then
@@ -121,12 +130,12 @@ _gather_ranks() {
     fi
 
     # Setup collection of results.
-    tmp_dir="$3"
     file_count=0
 
-    # Number of files is twice the number of ranks in case of concatenate mode.
-    [ "$mode" = "combine" ] && num_files="$MPI_SIZE"
-    [ "$mode" = "concatenate" ] && num_files=$((MPI_SIZE * 2))
+    # Number of files is twice the number of ranks in case of concatenate mode,
+    # as both labels and values are stored.
+    [ "$mode" = "combine" ] && num_files="$num_procs"
+    [ "$mode" = "concatenate" ] && num_files=$((num_procs * 2))
 
     # Wait for all files to appear.
     while true; do
@@ -139,9 +148,13 @@ _gather_ranks() {
 
     # Aggregate through addition if mode is combine, otherwise concatenate.
     if [ "$mode" = "combine" ]; then
-        mpi_total_array=$(_aggregate_combine "$mpi_total_array" "$dtype")
+        mpi_total_array=$(
+            _aggregate_combine "$mpi_total_array" "$num_procs" "$dtype"
+        )
     else
-        mpi_total_array=$(_aggregate_concatenate "$mpi_total_array" "$dtype")
+        mpi_total_array=$(
+            _aggregate_concatenate "$mpi_total_array" "$num_procs" "$dtype"
+        )
     fi
 
     # Print the totals as a newline-separated string.
@@ -153,12 +166,13 @@ _gather_ranks() {
 #   Supported modes:
 #       - combine:      Add up values at the same index for all ranks.
 #       - concatenate:  Concatenate results of all ranks and print in order.
-#   Usage:      mpi_gather <mode> <labels> <energy_values>
+#   Usage:      mpi_gather <mode> <num_procs> <labels> <energy_values>
 mpi_gather() {
     # Name input.
     mode="$1"
-    labels="$2"
-    energy="$3"
+    num_procs="$2"
+    labels="$3"
+    energy="$4"
 
     # Get job and rank ID for temporary files.
     job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
@@ -186,11 +200,13 @@ mpi_gather() {
     if [ "$RANK" -eq "0" ]; then
         # If in parallel, wait for results, gather values, and remove tmp files.
         if [ "$job" != "<NO JOB>" ]; then
-            energy_total=$(_gather_ranks "$mode" "energy" "$tmp_dir")
+            energy_total=$(
+                _gather_ranks "$mode" "$num_procs" "energy" "$tmp_dir"
+            )
 
             # Overwrite labels if mode is concatenate.
             if [ "$mode" = "concatenate" ]; then
-                labels=$(_gather_ranks "$mode" "labels" "$tmp_dir")
+                labels=$(_gather_ranks "$mode" "$num_procs" "labels" "$tmp_dir")
             fi
 
             # Remove the tmp directory.
@@ -217,23 +233,23 @@ mpi_gather() {
         # Print labels with collected values side by side.
         i=0
         zip_strings "$labels" "$energy_total" |
-        while IFS=' ' read -r event energy; do
-            # Add headers for each rank if in concatenate mode.
-            if [ "$mode" = "concatenate" ] \
-            && [ $((i % items_per_rank)) -eq 0 ]; then
-                [ $((i / items_per_rank)) -gt 0 ] && printf "\n"
-                printf "Rank %s:\n" $((i / items_per_rank))
-            fi
+            while IFS=' ' read -r event energy; do
+                # Add headers for each rank if in concatenate mode.
+                if [ "$mode" = "concatenate" ] \
+                && [ $((i % items_per_rank)) -eq 0 ]; then
+                    [ $((i / items_per_rank)) -gt 0 ] && printf "\n"
+                    printf "Rank %s:\n" $((i / items_per_rank))
+                fi
 
-            # Omit Joules postfix if value not numerical.
-            if is_numerical "$energy"; then
-                printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
-            else
-                printf "%-${max_label_len}s  %s\n" "$event" "$energy"
-            fi
+                # Omit Joules postfix if value not numerical.
+                if is_numerical "$energy"; then
+                    printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
+                else
+                    printf "%-${max_label_len}s  %s\n" "$event" "$energy"
+                fi
 
-            i=$((i + 1))
-        done
+                i=$((i + 1))
+            done
 
         # Print footer for energy measurements.
         print_full_width "=" "$max_window_width"

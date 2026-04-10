@@ -10,6 +10,7 @@ ROCMDIR="$SRCDIR/rocm"
 . "$ROCMDIR/../utils/general_utils.sh"
 . "$ROCMDIR/../utils/print_utils.sh"
 . "$PAPIDIR/../utils/array_utils.sh"
+. "$PAPIDIR/../utils/mpi_utils.sh"
 
 
 # Returns 0 if papi is available, 1 otherwise.
@@ -109,5 +110,5 @@ EOF
     energies=$(array_push "$energies" "$total_energy")
 
     # Print total energy consumption per event, and gather ranks if needed.
-    mpi_gather "$MPI_MODE" "$devices" "$energies"
+    mpi_gather "$MPI_MODE" "$MPI_SIZE" "$devices" "$energies"
 }

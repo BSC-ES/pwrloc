@@ -80,10 +80,10 @@ void parse_input(
     int argc, char** argv, struct component** components, char** program
 ) {
     /* Return if there are no events and units to profile. */
-    if (argc < 3) {
-        fprintf(stderr, "No events and units specified.\n");
+    if (argc < ARGV_PROGRAM_IDX) {
+        fprintf(stderr, "No events and/or units specified.\n");
         exit(EXIT_FAILURE);
-    } else if (argc < ARGV_PROGRAM_IDX) {
+    } else if (argc == ARGV_PROGRAM_IDX) {
         fprintf(stderr, "No program provided to profile.\n");
         exit(EXIT_FAILURE);
     }
