@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="docs/img/pwrloc_logo_rectangle.png" width="500">
+  <img src="docs/img/pwrloc_logo_rectangle.png" alt="Logo of pwrloc" width="500">
 </h1><br>
 
 The Portable Power Locality (pwrloc) tool acts as an interface for energy profilers.
