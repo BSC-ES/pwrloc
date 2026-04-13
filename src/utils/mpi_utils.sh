@@ -175,7 +175,7 @@ mpi_gather() {
     energy="$4"
 
     # Store number of items per rank for printing in concatenate mode.
-    items_per_rank=$(printf '%s\n' "$labels" | wc -l)
+    items_per_group=$(printf '%s\n' "$labels" | wc -l)
 
     # Only write tmp files if job detected.
     if [ "$JOB" != "<NO JOB>" ]; then
@@ -208,6 +208,13 @@ mpi_gather() {
             energy_total=$energy
         fi
 
+        # Determine whether each group of records is from a rank or node.
+        if [ "$num_procs" -lt "$MPI_SIZE" ]; then
+            group_label="Node"
+        else
+            group_label="Rank"
+        fi
+
         # Find the longest label name for aligned printing.
         max_label_len=$(get_max_len "$labels")
 
@@ -227,11 +234,11 @@ mpi_gather() {
         i=0
         zip_strings "$labels" "$energy_total" |
             while IFS=' ' read -r event energy; do
-                # Add headers for each rank if in concatenate mode.
+                # Add headers for each group if in concatenate mode.
                 if [ "$mode" = "concatenate" ] \
-                && [ $((i % items_per_rank)) -eq 0 ]; then
-                    [ $((i / items_per_rank)) -gt 0 ] && printf "\n"
-                    printf "Rank %s:\n" $((i / items_per_rank))
+                && [ $((i % items_per_group)) -eq 0 ]; then
+                    [ $((i / items_per_group)) -gt 0 ] && printf "\n"
+                    printf "$group_label %s:\n" $((i / items_per_group))
                 fi
 
                 # Omit Joules postfix if value not numerical.
