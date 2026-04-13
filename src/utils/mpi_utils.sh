@@ -28,30 +28,24 @@ _aggregate_concatenate() {
     num_procs="$2"
     dtype="$3"
 
-    # TODO: Fix reading the files as done for combine!
+    # Get all filenames of $dtype and sort by rank.
+    rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
+        awk -F'[_./]' '{print $(NF-2), $0}' |
+        sort -n |
+        cut -d' ' -f2-)
 
-    # Setup array with data from rank 0.
-    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    # Loop over rank files and concatenate values.
     mpi_total_array=""
-    while IFS= read -r line; do
-        mpi_total_array=$(array_push "$mpi_total_array" "$line")
-    done <<EOF
-$rank0_data
-EOF
-
-    # Aggregate the collected values of all ranks.
-    i=1
-    while [ "$i" -lt "$num_procs" ]; do
+    while IFS= read -r rank_file; do
         # Aggregate the values of this rank for each event.
-        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
-$rank_input
+$rank_file
 EOF
-
-        i=$((i + 1))
-    done
+    done <<EOF
+$rank_files
+EOF
 
     printf "%s\n" "$mpi_total_array"
 }
