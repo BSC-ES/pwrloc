@@ -29,6 +29,26 @@ char* parse_event_component(char* event) {
     return event_token;
 }
 
+/* Resize the given buffer if the new size is bigger than its current size. */
+void resize_buffer(char** buffer, size_t* buff_size, size_t new_buff_size) {
+    if (str_size > *buf_size) {
+        /* Double size until new string fits. */
+        while (str_size > *buf_size) {
+            *buf_size *= 2;
+        }
+
+        /* Create new bigger buffer. */
+        char* new_alloc = realloc(*program, *buf_size);
+        if (!new_alloc) {
+            perror("malloc failed");
+            free(*program);
+            exit(EXIT_FAILURE);
+        }
+
+        *program = new_alloc;
+    }
+}
+
 /* Concatenate the arguments defining the program and args to be profiled. */
 void concat_program_args(int argc, char** argv, char** program) {
     size_t buf_size = 512;
@@ -43,34 +63,26 @@ void concat_program_args(int argc, char** argv, char** program) {
 
     /* Loop over args and append to string, resizing buffer when needed. */
     size_t str_size = 0;
-    char* new_alloc = NULL;
 
     for (int i = ARGV_PROGRAM_IDX; i < argc; i++) {
         /* Resize buffer if needed. Add +2 for space and '\0'. */
         str_size = strlen(*program) + strlen(argv[i]) + 2;
-
-        if (str_size > buf_size) {
-            /* Double size until new string fits. */
-            while (str_size > buf_size) {
-                buf_size *= 2;
-            }
-
-            /* Create new bigger buffer. */
-            new_alloc = realloc(*program, buf_size);
-            if (!new_alloc) {
-                perror("malloc failed");
-                free(*program);
-                exit(EXIT_FAILURE);
-            }
-
-            *program = new_alloc;
-        }
+        resize_buffer(program, &buf_size, str_size);
 
         /* Concatenate new string into total. */
         if (i > ARGV_PROGRAM_IDX)
             strcat(*program, " ");
         strcat(*program, argv[i]);
     }
+
+    /* Expand program with piping stdout and stderr to files.
+     * Resize buffer if needed. Add +2 for space and '\0'.
+     */
+    char* file_piping = ">program.stdout 2>program.stderr";
+    str_size = strlen(*program) + strlen(file_piping) + 2;
+    resize_buffer(program, &buf_size, str_size);
+    strcat(*program, " ");
+    strcat(*program, file_piping);
 }
 
 /* Parse user input into list of events and the program to profile.
