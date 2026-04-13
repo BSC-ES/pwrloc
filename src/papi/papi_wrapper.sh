@@ -11,7 +11,8 @@ PAPIDIR="$SRCDIR/papi"
 . "$PAPIDIR/../utils/array_utils.sh"
 . "$PAPIDIR/../utils/mpi_utils.sh"
 
-PAPI_PROFILER="$PAPIDIR/papi_profiler.o"
+PAPI_PROFILER_NAME="papi_profiler.o"
+PAPI_PROFILER="$PAPIDIR/$PAPI_PROFILER_NAME"
 
 
 # Returns 0 if papi is available, 1 otherwise.
@@ -32,6 +33,7 @@ papi_available() {
 _compile_papi_profiler() {
     # Return if profiler exists and is executable.
     if [ -x "$PAPI_PROFILER" ]; then
+        verbose_echo print_info "$PAPI_PROFILER_NAME is already compiled."
         return
     fi
 

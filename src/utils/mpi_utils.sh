@@ -41,7 +41,7 @@ _aggregate_concatenate() {
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
-$rank_file
+$(cat "$rank_file")
 EOF
     done <<EOF
 $rank_files
@@ -68,12 +68,11 @@ _aggregate_combine() {
 
     # Setup array with data from the first rank and delete from list.
     first_rank_file=$(array_get "$rank_files" "0")
-    first_rank_data=$(cat "$first_rank_file")
     mpi_total_array=""
     while IFS= read -r line; do
         mpi_total_array=$(array_push "$mpi_total_array" "$line")
     done <<EOF
-$first_rank_data
+$(cat "$first_rank_file")
 EOF
     rank_files=$(array_delete "$rank_files" "0")
 
@@ -95,7 +94,7 @@ EOF
 
             j=$((j + 1))
         done <<EOF
-$rank_file
+$(cat "$rank_file")
 EOF
     done <<EOF
 $rank_files

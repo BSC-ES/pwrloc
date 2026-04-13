@@ -30,22 +30,22 @@ char* parse_event_component(char* event) {
 }
 
 /* Resize the given buffer if the new size is bigger than its current size. */
-void resize_buffer(char** buffer, size_t* buff_size, size_t new_buff_size) {
-    if (str_size > *buf_size) {
+void resize_buffer(char** buffer, size_t* buf_size, size_t min_size) {
+    if (min_size > *buf_size) {
         /* Double size until new string fits. */
-        while (str_size > *buf_size) {
+        while (min_size > *buf_size) {
             *buf_size *= 2;
         }
 
         /* Create new bigger buffer. */
-        char* new_alloc = realloc(*program, *buf_size);
+        char* new_alloc = realloc(*buffer, *buf_size);
         if (!new_alloc) {
             perror("malloc failed");
-            free(*program);
+            free(*buffer);
             exit(EXIT_FAILURE);
         }
 
-        *program = new_alloc;
+        *buffer = new_alloc;
     }
 }
 
@@ -75,13 +75,13 @@ void concat_program_args(int argc, char** argv, char** program) {
         strcat(*program, argv[i]);
     }
 
-    /* Expand program with piping stdout and stderr to files.
+    /* Expand program with piping stdout to stderr.
      * Resize buffer if needed. Add +1 for '\0'.
      */
-    char* file_piping = " >program.stdout 2>program.stderr";
-    str_size = strlen(*program) + strlen(file_piping) + 1;
+    char* stdout_piping = " 1>&2";
+    str_size = strlen(*program) + strlen(stdout_piping) + 1;
     resize_buffer(program, &buf_size, str_size);
-    strcat(*program, file_piping);
+    strcat(*program, stdout_piping);
 }
 
 /* Parse user input into list of events and the program to profile.
