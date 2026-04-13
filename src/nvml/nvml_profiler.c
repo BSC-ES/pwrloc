@@ -7,6 +7,7 @@
 #include <nvml.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -54,7 +55,7 @@ void concat_program_args(int argc, char** argv, char** program) {
         resize_buffer(program, &buf_size, str_size);
 
         /* Concatenate new string into total. */
-        if (i > ARGV_PROGRAM_IDX)
+        if (i > 1)
             strcat(*program, " ");
         strcat(*program, argv[i]);
     }
@@ -113,8 +114,8 @@ int main(int argc, char* argv[]) {
     if (pid == 0) {
         /* The child process executes the application and terminates. */
         char* program = NULL;
-        concat_program_args(argc, argv, program);
-        execvp(argv[1], program);
+        concat_program_args(argc, argv, &program);
+        execvp(argv[1], &program);
 
         /* Exit with error if the child process did not terminate. */
         perror("execvp failed");
