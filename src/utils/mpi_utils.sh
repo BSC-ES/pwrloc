@@ -11,7 +11,12 @@ UTILSDIR="$SRCDIR/utils"
 
 # Define globals for MPI related variables.
 RANK=${OMPI_COMM_WORLD_RANK:-${PMI_RANK:-${SLURM_PROCID:-${MPI_RANK:-0}}}}
+# shellcheck disable=SC2034
+LOCAL_RANK=${OMPI_COMM_WORLD_LOCAL_RANK:-${MPI_LOCALRANKID:-${PMI_LOCAL_RANK:-${SLURM_LOCALID:-0}}}}
+# shellcheck disable=SC2034
 MPI_SIZE=${OMPI_COMM_WORLD_SIZE:-${PMI_SIZE:-${SLURM_NTASKS:-1}}}
+JOB=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
+
 
 # Aggregate results of the ranks through concatonation.
 #   Supported data types:
@@ -22,28 +27,24 @@ _aggregate_concatenate() {
     mpi_total_array="$1"
     dtype="$2"
 
-    # Setup array with data from rank 0.
-    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
-    mpi_total_array=""
-    while IFS= read -r line; do
-        mpi_total_array=$(array_push "$mpi_total_array" "$line")
-    done <<EOF
-$rank0_data
-EOF
+    # Get all filenames of $dtype and sort by rank.
+    rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
+        awk -F'[_./]' '{print $(NF-2), $0}' |
+        sort -n |
+        cut -d' ' -f2-)
 
-    # Aggregate the collected values of all ranks.
-    i=1
-    while [ "$i" -lt "$MPI_SIZE" ]; do
-        # Aggregate the values of this rank for each event.
-        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
+    # Loop over rank files and concatenate values.
+    mpi_total_array=""
+    while IFS= read -r rank_file; do
+        # Concatenate the values of this rank for all events.
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
-$rank_input
+$(cat "$rank_file")
 EOF
-
-        i=$((i + 1))
-    done
+    done <<EOF
+$rank_files
+EOF
 
     printf "%s\n" "$mpi_total_array"
 }
@@ -57,26 +58,31 @@ _aggregate_combine() {
     mpi_total_array="$1"
     dtype="$2"
 
-    # Setup array with data from rank 0.
-    rank0_data=$(cat "$tmp_dir/rank_0_$dtype.out")
+    # Get all filenames of $dtype and sort by rank.
+    rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
+        awk -F'[_./]' '{print $(NF-2), $0}' |
+        sort -n |
+        cut -d' ' -f2-)
+
+    # Setup array with first rank to prevent out-of-bounds issues while
+    # aggregating.
+    first_rank_file=$(array_get "$rank_files" "0")
     mpi_total_array=""
     while IFS= read -r line; do
         mpi_total_array=$(array_push "$mpi_total_array" "$line")
     done <<EOF
-$rank0_data
+$(cat "$first_rank_file")
 EOF
+    rank_files=$(array_delete "$rank_files" "0")
 
-    # Aggregate the collected values of all ranks.
-    i=1
-    while [ "$i" -lt "$MPI_SIZE" ]; do
-        rank_input=$(cat "$tmp_dir/rank_${i}_$dtype.out")
-
+    # Loop over rank files and aggregate values.
+    while IFS= read -r rank_file; do
         # Aggregate the values of this rank for each event.
         j=0
         while IFS= read -r line; do
             cur_energy=$(array_get "$mpi_total_array" "$j")
 
-            # If input is text, set total to that string.
+            # If input is a string, set total to that string as it is a label.
             if ! is_numerical "$line"; then
                 mpi_total_array=$(array_set "$mpi_total_array" "$j" "$line")
             # Only perform addition if current total value is not a string.
@@ -87,11 +93,11 @@ EOF
 
             j=$((j + 1))
         done <<EOF
-$rank_input
+$(cat "$rank_file")
 EOF
-
-        i=$((i + 1))
-    done
+    done <<EOF
+$rank_files
+EOF
 
     printf "%s\n" "$mpi_total_array"
 }
@@ -105,11 +111,13 @@ EOF
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _gather_ranks <mode> <data_type> <tmp_dir>
+#   Usage:      _gather_ranks <mode> <$num_procs> <data_type> <tmp_dir>
 _gather_ranks() {
     # Set mode.
     mode="$1"
-    dtype="$2"
+    num_procs="$2"
+    dtype="$3"
+    tmp_dir="$4"
 
     # Check if mode and dtype are valid.
     if [ "$mode" != "combine" ] && [ "$mode" != "concatenate" ]; then
@@ -121,12 +129,12 @@ _gather_ranks() {
     fi
 
     # Setup collection of results.
-    tmp_dir="$3"
     file_count=0
 
-    # Number of files is twice the number of ranks in case of concatenate mode.
-    [ "$mode" = "combine" ] && num_files="$MPI_SIZE"
-    [ "$mode" = "concatenate" ] && num_files=$((MPI_SIZE * 2))
+    # Number of files is twice the number of ranks in case of concatenate mode,
+    # as both labels and values are stored.
+    [ "$mode" = "combine" ] && num_files="$num_procs"
+    [ "$mode" = "concatenate" ] && num_files=$((num_procs * 2))
 
     # Wait for all files to appear.
     while true; do
@@ -153,28 +161,22 @@ _gather_ranks() {
 #   Supported modes:
 #       - combine:      Add up values at the same index for all ranks.
 #       - concatenate:  Concatenate results of all ranks and print in order.
-#   Usage:      mpi_gather <mode> <labels> <energy_values>
+#   Usage:      mpi_gather <mode> <num_procs> <labels> <energy_values>
 mpi_gather() {
     # Name input.
     mode="$1"
-    labels="$2"
-    energy="$3"
-
-    # Get job and rank ID for temporary files.
-    job=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
+    num_procs="$2"
+    labels="$3"
+    energy="$4"
 
     # Store number of items per rank for printing in concatenate mode.
-    items_per_rank=$(printf '%s\n' "$labels" | wc -l)
+    items_per_group=$(printf '%s\n' "$labels" | wc -l)
 
     # Only write tmp files if job detected.
-    if [ "$job" != "<NO JOB>" ]; then
-        tmp_dir="tmp.$job"
+    if [ "$JOB" != "<NO JOB>" ]; then
+        tmp_dir="tmp.$JOB"
         mkdir -p "$tmp_dir"
         printf "%s\n" "$energy" >"$tmp_dir/rank_${RANK}_energy.out"
-
-        # Report task's energy consumption in VERBOSE mode.
-        line="Task's total energy consumption: $(array_get "$energy" "-1")"
-        verbose_echo print_info "$line"
 
         # Only store labels if in concatenate mode.
         if [ "$mode" = "concatenate" ]; then
@@ -185,18 +187,27 @@ mpi_gather() {
     # Only rank 0 combines the results.
     if [ "$RANK" -eq "0" ]; then
         # If in parallel, wait for results, gather values, and remove tmp files.
-        if [ "$job" != "<NO JOB>" ]; then
-            energy_total=$(_gather_ranks "$mode" "energy" "$tmp_dir")
+        if [ "$JOB" != "<NO JOB>" ]; then
+            energy_total=$(
+                _gather_ranks "$mode" "$num_procs" "energy" "$tmp_dir"
+            )
 
             # Overwrite labels if mode is concatenate.
             if [ "$mode" = "concatenate" ]; then
-                labels=$(_gather_ranks "$mode" "labels" "$tmp_dir")
+                labels=$(_gather_ranks "$mode" "$num_procs" "labels" "$tmp_dir")
             fi
 
             # Remove the tmp directory.
             rm -rd "$tmp_dir"
         else
             energy_total=$energy
+        fi
+
+        # Determine whether each group of records is from a rank or node.
+        if [ "$num_procs" -lt "$MPI_SIZE" ]; then
+            group_label="Node"
+        else
+            group_label="Rank"
         fi
 
         # Find the longest label name for aligned printing.
@@ -217,25 +228,77 @@ mpi_gather() {
         # Print labels with collected values side by side.
         i=0
         zip_strings "$labels" "$energy_total" |
-        while IFS=' ' read -r event energy; do
-            # Add headers for each rank if in concatenate mode.
-            if [ "$mode" = "concatenate" ] \
-            && [ $((i % items_per_rank)) -eq 0 ]; then
-                [ $((i / items_per_rank)) -gt 0 ] && printf "\n"
-                printf "Rank %s:\n" $((i / items_per_rank))
-            fi
+            while IFS=' ' read -r event energy; do
+                # Add headers for each group if in concatenate mode.
+                if [ "$mode" = "concatenate" ] \
+                && [ $((i % items_per_group)) -eq 0 ]; then
+                    [ $((i / items_per_group)) -gt 0 ] && printf "\n"
+                    printf "$group_label %s:\n" $((i / items_per_group))
+                fi
 
-            # Omit Joules postfix if value not numerical.
-            if is_numerical "$energy"; then
-                printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
-            else
-                printf "%-${max_label_len}s  %s\n" "$event" "$energy"
-            fi
+                # Omit Joules postfix if value not numerical.
+                if is_numerical "$energy"; then
+                    printf "%-${max_label_len}s  %s J\n" "$event" "$energy"
+                else
+                    printf "%-${max_label_len}s  %s\n" "$event" "$energy"
+                fi
 
-            i=$((i + 1))
-        done
+                i=$((i + 1))
+            done
 
         # Print footer for energy measurements.
         print_full_width "=" "$max_window_width"
     fi
+}
+
+# Get the number of nodes in use.
+mpi_get_num_nodes() {
+    # Return 1 if MPI is not in use.
+    if [ "$JOB" = "<NO JOB>" ]; then
+        printf "1\n"
+        return
+    fi
+
+    # Create tmp dir and let every rank write their local rank id.
+    tmp_dir_num_nodes="tmp.$JOB/num_nodes"
+    mkdir -p "$tmp_dir_num_nodes"
+    touch "$tmp_dir_num_nodes/${RANK}_${LOCAL_RANK}.tmp"
+
+    # Wait for all files to be written.
+    while true; do
+        file_count=$(find "$tmp_dir_num_nodes" -maxdepth 1 -type f | wc -l)
+        if [ "$file_count" -ge "$MPI_SIZE" ]; then
+            break
+        fi
+        sleep 0.5
+    done
+
+    # Count the number of files named 0.tmp and write confirm file.
+    node_count=$(
+        find "$tmp_dir_num_nodes" -type f -name '*0.tmp' | wc -l | tr -d ' '
+    )
+    touch "$tmp_dir_num_nodes/sync.${RANK}"
+
+    # Sync with all processes and perform cleanup.
+    if [ "$RANK" -eq "0" ]; then
+        # If rank 0, wait for all files to be present, and remove everything.
+        while true; do
+            file_count=$(find "$tmp_dir_num_nodes" -maxdepth 1 -type f | wc -l)
+            if [ "$file_count" -ge "$((MPI_SIZE * 2))" ]; then
+                break
+            fi
+            sleep 0.5
+        done
+
+        # Let the folder itself exist as it will be removed during MPI clean up.
+        rm -rf "${tmp_dir_num_nodes:?}/"
+    else
+        # If rank > 0, wait for num_nodes dir to be removed.
+        while [ -d "$tmp_dir_num_nodes" ]; do
+            sleep 0.5
+        done
+    fi
+
+    # Print number of nodes.
+    printf "%s\n" "$node_count"
 }

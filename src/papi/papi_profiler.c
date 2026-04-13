@@ -29,6 +29,26 @@ char* parse_event_component(char* event) {
     return event_token;
 }
 
+/* Resize the given buffer if the new size is bigger than its current size. */
+void resize_buffer(char** buffer, size_t* buf_size, size_t min_size) {
+    if (min_size > *buf_size) {
+        /* Double size until new string fits. */
+        while (min_size > *buf_size) {
+            *buf_size *= 2;
+        }
+
+        /* Create new bigger buffer. */
+        char* new_alloc = realloc(*buffer, *buf_size);
+        if (!new_alloc) {
+            perror("malloc failed");
+            free(*buffer);
+            exit(EXIT_FAILURE);
+        }
+
+        *buffer = new_alloc;
+    }
+}
+
 /* Concatenate the arguments defining the program and args to be profiled. */
 void concat_program_args(int argc, char** argv, char** program) {
     size_t buf_size = 512;
@@ -43,34 +63,25 @@ void concat_program_args(int argc, char** argv, char** program) {
 
     /* Loop over args and append to string, resizing buffer when needed. */
     size_t str_size = 0;
-    char* new_alloc = NULL;
 
     for (int i = ARGV_PROGRAM_IDX; i < argc; i++) {
         /* Resize buffer if needed. Add +2 for space and '\0'. */
         str_size = strlen(*program) + strlen(argv[i]) + 2;
-
-        if (str_size > buf_size) {
-            /* Double size until new string fits. */
-            while (str_size > buf_size) {
-                buf_size *= 2;
-            }
-
-            /* Create new bigger buffer. */
-            new_alloc = realloc(*program, buf_size);
-            if (!new_alloc) {
-                perror("malloc failed");
-                free(*program);
-                exit(EXIT_FAILURE);
-            }
-
-            *program = new_alloc;
-        }
+        resize_buffer(program, &buf_size, str_size);
 
         /* Concatenate new string into total. */
         if (i > ARGV_PROGRAM_IDX)
             strcat(*program, " ");
         strcat(*program, argv[i]);
     }
+
+    /* Expand program with piping stdout to stderr.
+     * Resize buffer if needed. Add +1 for '\0'.
+     */
+    char* stdout_piping = " 1>&2";
+    str_size = strlen(*program) + strlen(stdout_piping) + 1;
+    resize_buffer(program, &buf_size, str_size);
+    strcat(*program, stdout_piping);
 }
 
 /* Parse user input into list of events and the program to profile.
@@ -80,10 +91,10 @@ void parse_input(
     int argc, char** argv, struct component** components, char** program
 ) {
     /* Return if there are no events and units to profile. */
-    if (argc < 3) {
-        fprintf(stderr, "No events and units specified.\n");
+    if (argc < ARGV_PROGRAM_IDX) {
+        fprintf(stderr, "No events and/or units specified.\n");
         exit(EXIT_FAILURE);
-    } else if (argc < ARGV_PROGRAM_IDX) {
+    } else if (argc == ARGV_PROGRAM_IDX) {
         fprintf(stderr, "No program provided to profile.\n");
         exit(EXIT_FAILURE);
     }

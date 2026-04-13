@@ -79,7 +79,7 @@ perf_profile() {
     energy=$(_get_energy_consumed "$@")
 
     # Print total energy consumption per event, and gather ranks if needed.
-    mpi_gather "$MPI_MODE" "$events" "$energy"
+    mpi_gather "$MPI_MODE" "$MPI_SIZE" "$events" "$energy"
 }
 
 # Prints a list of perf events and whether they are supported.
