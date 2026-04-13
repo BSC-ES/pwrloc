@@ -76,12 +76,11 @@ void concat_program_args(int argc, char** argv, char** program) {
     }
 
     /* Expand program with piping stdout and stderr to files.
-     * Resize buffer if needed. Add +2 for space and '\0'.
+     * Resize buffer if needed. Add +1 for '\0'.
      */
-    char* file_piping = ">program.stdout 2>program.stderr";
-    str_size = strlen(*program) + strlen(file_piping) + 2;
+    char* file_piping = " >program.stdout 2>program.stderr";
+    str_size = strlen(*program) + strlen(file_piping) + 1;
     resize_buffer(program, &buf_size, str_size);
-    strcat(*program, " ");
     strcat(*program, file_piping);
 }
 
