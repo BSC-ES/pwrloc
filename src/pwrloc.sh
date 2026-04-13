@@ -100,6 +100,10 @@ show_setup() {
     verbose_echo "bin = $bin"
     verbose_echo "args = $args"
     verbose_echo "MPI mode = $MPI_MODE"
+    verbose_echo "MPI rank = $RANK"
+    verbose_echo "MPI local rank = $LOCAL_RANK"
+    verbose_echo "MPI size = $MPI_SIZE"
+    verbose_echo "JobID = $JOB"
     verbose_echo "======== END SETUP ========"
 }
 
