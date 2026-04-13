@@ -13,11 +13,11 @@ NVML_PROFILER_NAME="nvml_profiler.o"
 NVML_PROFILER="$NVMLDIR/$NVML_PROFILER_NAME"
 
 
-# Returns 0 if papi is available, 1 otherwise.
+# Returns 0 if nvml is available, 1 otherwise.
 nvml_available() {
     verbose_echo print_info "Checking for nvidia-smi availability.."
 
-    # Check if the papi_avail command is available.
+    # Check if the nvidia-smi command is available.
     if ! function_exists nvidia-smi; then
         printf "1\n"
         return 1
@@ -36,7 +36,7 @@ _compile_nvml_profiler() {
 
     # Recompile profiler with rank 0, and let other ranks wait.
     if [ "$RANK" -eq "0" ]; then
-        verbose_echo print_info "Compiling papi_profiler.c.."
+        verbose_echo print_info "Compiling ${NVML_PROFILER_NAME}.."
 
         # Remove profiler binary if it exists but isn't executable.
         if [ -f "$NVML_PROFILER" ]; then
