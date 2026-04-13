@@ -22,11 +22,10 @@ JOB=${SLURM_JOB_ID:-${PBS_JOBID:-${JOB_ID:-"<NO JOB>"}}}
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _aggregate_concatenate  <mpi_total_array> <num_procs> <dtype>
+#   Usage:      _aggregate_concatenate  <mpi_total_array> <dtype>
 _aggregate_concatenate() {
     mpi_total_array="$1"
-    num_procs="$2"
-    dtype="$3"
+    dtype="$2"
 
     # Get all filenames of $dtype and sort by rank.
     rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
@@ -37,7 +36,7 @@ _aggregate_concatenate() {
     # Loop over rank files and concatenate values.
     mpi_total_array=""
     while IFS= read -r rank_file; do
-        # Aggregate the values of this rank for each event.
+        # Concatenate the values of this rank for all events.
         while IFS= read -r line; do
             mpi_total_array=$(array_push "$mpi_total_array" "$line")
         done <<EOF
@@ -54,11 +53,10 @@ EOF
 #   Supported data types:
 #       - energy:       Gather energy values.
 #       - labels:       Gather labels.
-#   Usage:      _aggregate_combine  <mpi_total_array> <num_procs> <dtype>
+#   Usage:      _aggregate_combine  <mpi_total_array> <dtype>
 _aggregate_combine() {
     mpi_total_array="$1"
-    num_procs="$2"
-    dtype="$3"
+    dtype="$2"
 
     # Get all filenames of $dtype and sort by rank.
     rank_files=$(find "$tmp_dir" -type f -name "rank_*_${dtype}.out" |
@@ -66,7 +64,8 @@ _aggregate_combine() {
         sort -n |
         cut -d' ' -f2-)
 
-    # Setup array with data from the first rank and delete from list.
+    # Setup array with first rank to prevent out-of-bounds issues while
+    # aggregating.
     first_rank_file=$(array_get "$rank_files" "0")
     mpi_total_array=""
     while IFS= read -r line; do
@@ -83,7 +82,7 @@ EOF
         while IFS= read -r line; do
             cur_energy=$(array_get "$mpi_total_array" "$j")
 
-            # If input is text, set total to that string.
+            # If input is a string, set total to that string as it is a label.
             if ! is_numerical "$line"; then
                 mpi_total_array=$(array_set "$mpi_total_array" "$j" "$line")
             # Only perform addition if current total value is not a string.
@@ -148,13 +147,9 @@ _gather_ranks() {
 
     # Aggregate through addition if mode is combine, otherwise concatenate.
     if [ "$mode" = "combine" ]; then
-        mpi_total_array=$(
-            _aggregate_combine "$mpi_total_array" "$num_procs" "$dtype"
-        )
+        mpi_total_array=$(_aggregate_combine "$mpi_total_array" "$dtype")
     else
-        mpi_total_array=$(
-            _aggregate_concatenate "$mpi_total_array" "$num_procs" "$dtype"
-        )
+        mpi_total_array=$(_aggregate_concatenate "$mpi_total_array" "$dtype")
     fi
 
     # Print the totals as a newline-separated string.
