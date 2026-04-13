@@ -78,7 +78,7 @@ void concat_program_args(int argc, char** argv, char** program) {
     /* Expand program with piping stdout to stderr.
      * Resize buffer if needed. Add +1 for '\0'.
      */
-    char* stdout_piping = " 1>&2";
+    char* stdout_piping = " 1>&2\0";
     str_size = strlen(*program) + strlen(stdout_piping) + 1;
     resize_buffer(program, &buf_size, str_size);
     strcat(*program, stdout_piping);

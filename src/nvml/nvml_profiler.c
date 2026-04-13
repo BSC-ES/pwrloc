@@ -63,7 +63,7 @@ void concat_program_args(int argc, char** argv, char** program) {
     /* Expand program with piping stdout to stderr.
      * Resize buffer if needed. Add +1 for '\0'.
      */
-    char* stdout_piping = " 1>&2";
+    char* stdout_piping = " 1>&2\0";
     str_size = strlen(*program) + strlen(stdout_piping) + 1;
     resize_buffer(program, &buf_size, str_size);
     strcat(*program, stdout_piping);
@@ -115,11 +115,8 @@ int main(int argc, char* argv[]) {
         /* The child process executes the application and terminates. */
         char* program = NULL;
         concat_program_args(argc, argv, &program);
-        execvp(argv[1], &program);
-
-        /* Exit with error if the child process did not terminate. */
-        perror("execvp failed");
-        exit(EXIT_FAILURE);
+        system(program);
+        exit(EXIT_SUCCESS);
     }
 
     /* The parent process measures power usage while the child is alive. */
