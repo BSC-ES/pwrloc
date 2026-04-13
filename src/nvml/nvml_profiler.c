@@ -100,11 +100,11 @@ int main(int argc, char* argv[]) {
     double total_energy = 0.0;
 
     for (unsigned int i = 0; i < num_devices; i++) {
-        printf("GPU %d:\t%.3f J\n", i, energy_consumed[i]);
+        printf("GPU_%d %.3f J\n", i, energy_consumed[i]);
         total_energy += energy_consumed[i];
     }
 
-    printf("Total:\t%.3f J\n", total_energy);
+    printf("Total %.3f J\n", total_energy);
     nvmlShutdown();
     return EXIT_SUCCESS;
 }

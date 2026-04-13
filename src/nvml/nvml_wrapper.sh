@@ -9,7 +9,8 @@ NVMLDIR="$SRCDIR/nvml"
 . "$NVMLDIR/../utils/general_utils.sh"
 . "$NVMLDIR/../utils/print_utils.sh"
 
-NVML_PROFILER="$NVMLDIR/nvml_profiler.o"
+NVML_PROFILER_NAME="nvml_profiler.o"
+NVML_PROFILER="$NVMLDIR/$NVML_PROFILER_NAME"
 
 
 # Returns 0 if papi is available, 1 otherwise.
@@ -27,30 +28,41 @@ nvml_available() {
 }
 
 _compile_nvml_profiler() {
-    # Check if the binary exists.
-    if [ -f "$NVML_PROFILER" ]; then
-        # If exists, check for executable rights and rebuild if not.
-        if [ -x "$NVML_PROFILER" ]; then
-            return
-        else
+    # Return if profiler exists and is executable.
+    if [ -x "$NVML_PROFILER" ]; then
+        verbose_echo print_info "$NVML_PROFILER_NAME is already compiled."
+        return
+    fi
+
+    # Recompile profiler with rank 0, and let other ranks wait.
+    if [ "$RANK" -eq "0" ]; then
+        verbose_echo print_info "Compiling papi_profiler.c.."
+
+        # Remove profiler binary if it exists but isn't executable.
+        if [ -f "$NVML_PROFILER" ]; then
             rm "$NVML_PROFILER"
         fi
-    fi
 
-    # Compile the code.
-    cc -I/usr/local/cuda/include "$NVMLDIR/nvml_profiler.c" \
-        -o "$NVML_PROFILER" -lnvidia-ml -Wall
-    if ! $?; then
-        print_error \
-            "Error while compiling $(basename "$NVML_PROFILER"), exiting.."
-        exit 1
-    fi
+        # Compile the code.
+        if ! cc -I/usr/local/cuda/include "$NVMLDIR/nvml_profiler.c" \
+                -o "$NVML_PROFILER" -lnvidia-ml -Wall; then
+            print_error \
+                "Error while compiling $(basename "$NVML_PROFILER"), exiting.."
+            exit 1
+        fi
 
-    # Make binary executable.
-    if ! chmod +x "$NVML_PROFILER"; then
-        print_error \
-            "Error during 'chmod +x $(basename "$NVML_PROFILER")', exiting.."
-        exit 1
+        # Make binary executable.
+        if ! chmod +x "$NVML_PROFILER"; then
+            print_error \
+                "Error during 'chmod +x $(basename "$NVML_PROFILER")', exiting.."
+            exit 1
+        fi
+    else
+        # Rank > 0 wait till profiler exists.
+        verbose_echo print_info "Waiting for rank 0 to compile profiler.."
+        while [ ! -x "$NVML_PROFILER" ]; do
+            sleep 0.2
+        done
     fi
 }
 
@@ -74,11 +86,24 @@ nvml_profile() {
         return 1
     fi
 
-    # Make sure the papi_profiler is updated and compiled.
-    verbose_echo print_info "Compiling nvml_profiler.c.."
+    # Make sure the NVML profiler is compiled.
     _compile_nvml_profiler
 
-    # Profile binary with supported events.
-    verbose_echo print_into "Executing profiler"
-    "$NVML_PROFILER" "$@"
+    # Compute the number of nodes using all ranks.
+    num_nodes=$(mpi_get_num_nodes)
+
+    # NVML profiles the entire node, thus only the first rank per node needs to
+    # profile.
+    if [ "$LOCAL_RANK" -eq "0" ]; then
+        # Collect measurements with NVML.
+        verbose_echo print_info "Executing profiler"
+        output=$("$NVML_PROFILER" "$@")
+
+        # Split output in labels and energies, then merge MPI ranks.
+        labels=$(printf '%s\n' "$output" | awk '{print $1}')
+        energies=$(printf '%s\n' "$output" | awk '{print $2}')
+        mpi_gather "$MPI_MODE" "$num_nodes" "$labels" "$energies"
+    else
+        verbose_echo print_info "Local rank > 0, so exiting.."
+    fi
 }
