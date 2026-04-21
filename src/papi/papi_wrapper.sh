@@ -39,7 +39,7 @@ _compile_papi_profiler() {
 
     # Recompile profiler with rank 0, and let other ranks wait.
     if [ "$RANK" -eq "0" ]; then
-        verbose_echo print_info "Compiling papi_profiler.c.."
+        verbose_echo print_info "Compiling ${PAPI_PROFILER_NAME}.."
 
         # Remove profiler binary if it exists but isn't executable.
         if [ -f "$PAPI_PROFILER" ]; then
@@ -61,7 +61,7 @@ _compile_papi_profiler() {
             exit 1
         fi
     else
-        # Rank >0 wait till profiler exists.
+        # Rank > 0 wait till profiler exists.
         verbose_echo print_info "Waiting for rank 0 to compile profiler.."
         while [ ! -x "$PAPI_PROFILER" ]; do
             sleep 0.2
@@ -349,7 +349,7 @@ $events"
     verbose_echo print_info "Units:
 $units"
 
-    # Make sure the papi_profiler is updated and compiled.
+    # Make sure the PAPI profiler is updated and compiled.
     _compile_papi_profiler
 
     # Compute the number of nodes using all ranks.
