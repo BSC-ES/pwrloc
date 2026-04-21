@@ -26,7 +26,7 @@ fi
 # Show test suite preamble.
 show_tests_preamble() {
     print_full_width "="
-    print_centered "Welcome to  pwrloc's test suite!"
+    print_centered "Welcome to pwrloc's test suite!"
     print_full_width "="
 }
 
